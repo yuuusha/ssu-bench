@@ -15,8 +15,8 @@ import java.util.UUID;
 public interface TaskRepository {
 
     @SqlUpdate("""
-        INSERT INTO tasks (id, title, description, reward, status, customer_id, created_at)
-        VALUES (:id, :title, :description, :reward, :status, :customerId, NOW())
+        INSERT INTO tasks (id, title, description, reward, status, customer_id)
+        VALUES (:id, :title, :description, :reward, :status, :customerId)
     """)
     void create(
             @Bind("id") UUID id,
@@ -37,7 +37,6 @@ public interface TaskRepository {
     @SqlQuery("""
         SELECT *
         FROM tasks
-        ORDER BY created_at DESC
         LIMIT :limit OFFSET :offset
     """)
     List<Task> findAll(
@@ -53,6 +52,22 @@ public interface TaskRepository {
     void updateStatus(
             @Bind("id") UUID id,
             @Bind("status") TaskStatus status
+    );
+
+    @SqlUpdate("""
+        UPDATE tasks
+        SET title = :title,
+            description = :description,
+            reward = :reward,
+            status = :status
+        WHERE id = :id
+    """)
+    void update(
+            @Bind("id") UUID id,
+            @Bind("title") String title,
+            @Bind("description") String description,
+            @Bind("reward") Integer reward,
+            @Bind("status") String status
     );
 
     @SqlUpdate("""

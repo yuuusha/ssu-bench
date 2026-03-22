@@ -1,10 +1,17 @@
 package com.diev.entity;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.util.UUID;
 
-public record Bid(
-        UUID id,
-        Long taskId,
-        Long executorId,
-        String status
-) {}
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Bid {
+    UUID id;
+    UUID taskId;
+    UUID executorId;
+    String status;
+}

@@ -1,13 +1,20 @@
 package com.diev.entity;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.util.UUID;
 
-public record Task(
-        UUID id,
-        String title,
-        String description,
-        Integer reward,
-        TaskStatus status,
-        UUID customerId,
-        UUID executorId
-) {}
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Task {
+    UUID id;
+    String title;
+    String description;
+    Integer reward;
+    TaskStatus status;
+    UUID customerId;
+    UUID executorId;
+}

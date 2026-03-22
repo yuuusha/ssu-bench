@@ -1,6 +1,9 @@
 package com.diev.handler;
 
+import com.diev.entity.Role;
 import com.diev.entity.Task;
+import com.diev.entity.TaskStatus;
+import com.diev.entity.User;
 import com.diev.service.TaskService;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,6 +29,24 @@ public class TaskController {
     ) {
 
         return taskService.createTask(customerId, title, description, reward);
+    }
+
+    @PutMapping("/{id}")
+    public Task updateTask(
+            @PathVariable UUID id,
+            @RequestParam String title,
+            @RequestParam String description,
+            @RequestParam Integer reward,
+            @RequestParam TaskStatus status
+    ) {
+        return taskService.updateTask(id, title, description, reward, status.name());
+    }
+
+    @PostMapping("/{id}/publish")
+    public Task publishTask(
+            @PathVariable UUID id
+    ) {
+        return taskService.updateTaskStatus(id, TaskStatus.PUBLISHED.name());
     }
 
     @GetMapping("/{id}")

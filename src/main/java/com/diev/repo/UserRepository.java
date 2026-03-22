@@ -5,7 +5,10 @@ import org.jdbi.v3.sqlobject.config.RegisterBeanMapper;
 import org.jdbi.v3.sqlobject.statement.SqlQuery;
 import org.jdbi.v3.sqlobject.statement.SqlUpdate;
 import org.jdbi.v3.sqlobject.customizer.Bind;
+import org.springframework.stereotype.Repository;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -26,9 +29,12 @@ public interface UserRepository {
     """)
     Optional<User> findByEmail(@Bind("email") String email);
 
+    @SqlQuery("SELECT * FROM users")
+    List<User> findAll();
+
     @SqlUpdate("""
-        INSERT INTO users (id, email, password, role, balance, blocked, created_at)
-        VALUES (:id, :email, :password, :role, :balance, :blocked, NOW())
+        INSERT INTO users (id, email, password, role, balance, blocked)
+        VALUES (:id, :email, :password, :role, :balance, :blocked)
     """)
     void create(
             @Bind("id") UUID id,
@@ -38,6 +44,28 @@ public interface UserRepository {
             @Bind("balance") long balance,
             @Bind("blocked") boolean blocked
     );
+
+    @SqlUpdate("""
+        UPDATE users
+        SET email = :email,
+            password = :passwordHash,
+            role = :role,
+            balance = :balance
+        WHERE id = :id
+    """)
+    void update(
+            @Bind("id") UUID id,
+            @Bind("email") String email,
+            @Bind("passwordHash") String passwordHash,
+            @Bind("role") String role,
+            @Bind("balance") long balance
+    );
+
+    @SqlUpdate("""
+        DELETE FROM users
+        WHERE id = :id
+    """)
+    void delete(@Bind("id") UUID id);
 
     @SqlUpdate("""
         UPDATE users

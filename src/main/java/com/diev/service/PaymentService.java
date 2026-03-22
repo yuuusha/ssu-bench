@@ -9,6 +9,7 @@ import com.diev.repo.UserRepository;
 import org.jdbi.v3.core.Jdbi;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Service
@@ -31,21 +32,21 @@ public class PaymentService {
             Task task = taskRepo.findById(taskId)
                     .orElseThrow(() -> new RuntimeException("Task not found"));
 
-            if (!task.customerId().equals(customerId)) {
+            if (!task.getCustomerId().equals(customerId)) {
                 throw new RuntimeException("Only customer can confirm task");
             }
 
-            if (task.status() != TaskStatus.DONE) {
+            if (task.getStatus() != TaskStatus.DONE) {
                 throw new RuntimeException("Task is not completed by executor");
             }
 
-            UUID executorId = task.executorId();
+            UUID executorId = task.getExecutorId();
 
             if (executorId == null) {
                 throw new RuntimeException("Executor not assigned");
             }
 
-            int reward = task.reward();
+            int reward = task.getReward();
 
             // атомарное списание средств
             int updated = handle.createUpdate("""
@@ -54,7 +55,7 @@ public class PaymentService {
                 WHERE id = :id
                 AND balance >= :amount
         """)
-                    .bind("id", task.customerId())
+                    .bind("id", task.getCustomerId())
                     .bind("amount", reward)
                     .execute();
 
@@ -75,10 +76,10 @@ public class PaymentService {
             // создаём запись платежа
             paymentRepo.create(
                     UUID.randomUUID(),
-                    task.customerId(),
+                    task.getCustomerId(),
                     executorId,
                     reward,
-                    taskId
+                    LocalDateTime.now()
             );
 
             // обновляем статус задачи

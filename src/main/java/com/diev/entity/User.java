@@ -1,12 +1,21 @@
 package com.diev.entity;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.util.UUID;
 
-public record User(
-        UUID id,
-        String email,
-        String password,
-        String role,
-        Integer balance,
-        Boolean blocked
-) {}
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class User {
+
+    UUID id;
+    String email;
+    String password;
+    String role;
+    Integer balance;
+    Boolean blocked;
+
+}

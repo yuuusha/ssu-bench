@@ -15,8 +15,8 @@ import java.util.UUID;
 public interface BidRepository {
 
     @SqlUpdate("""
-        INSERT INTO bids (id, task_id, executor_id, status, created_at)
-        VALUES (:id, :taskId, :executorId, :status, NOW())
+        INSERT INTO bids (id, task_id, executor_id, status)
+        VALUES (:id, :taskId, :executorId, :status)
     """)
     void create(
             @Bind("id") UUID id,
@@ -36,7 +36,6 @@ public interface BidRepository {
         SELECT *
         FROM bids
         WHERE task_id = :taskId
-        ORDER BY created_at
     """)
     List<Bid> findByTask(@Bind("taskId") UUID taskId);
 

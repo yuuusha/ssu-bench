@@ -49,11 +49,11 @@ public class AuthService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        if (!passwordEncoder.matches(password, user.password())) {
+        if (!passwordEncoder.matches(password, user.getPassword())) {
             throw new RuntimeException("Invalid password");
         }
 
-        if (user.blocked()) {
+        if (user.getBlocked()) {
             throw new RuntimeException("User blocked");
         }
 

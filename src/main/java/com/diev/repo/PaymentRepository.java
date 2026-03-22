@@ -6,6 +6,7 @@ import org.jdbi.v3.sqlobject.statement.SqlUpdate;
 import org.jdbi.v3.sqlobject.statement.SqlQuery;
 import org.jdbi.v3.sqlobject.customizer.Bind;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -13,23 +14,22 @@ import java.util.UUID;
 public interface PaymentRepository {
 
     @SqlUpdate("""
-        INSERT INTO payments (id, from_user_id, to_user_id, amount, task_id, created_at)
-        VALUES (:id, :fromUserId, :toUserId, :amount, :taskId, NOW())
+        INSERT INTO payments (id, from_user, to_user, amount, created_at)
+        VALUES (:id, :fromUserId, :toUserId, :amount, :createdAt)
     """)
     void create(
             @Bind("id") UUID id,
             @Bind("fromUserId") UUID fromUserId,
             @Bind("toUserId") UUID toUserId,
             @Bind("amount") Integer amount,
-            @Bind("taskId") UUID taskId
+            @Bind("createdAt") LocalDateTime createdAt
     );
 
     @SqlQuery("""
         SELECT *
         FROM payments
-        WHERE from_user_id = :userId
-        OR to_user_id = :userId
-        ORDER BY created_at DESC
+        WHERE from_user = :userId
+        OR to_user = :userId
     """)
     List<Payment> findByUser(@Bind("userId") UUID userId);
 }

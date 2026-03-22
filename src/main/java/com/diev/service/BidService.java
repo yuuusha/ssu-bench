@@ -31,7 +31,7 @@ public class BidService {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new RuntimeException("Task not found"));
 
-        if (task.status() != TaskStatus.PUBLISHED) {
+        if (task.getStatus() != TaskStatus.PUBLISHED) {
             throw new RuntimeException("Task is not open for bids");
         }
 
@@ -62,22 +62,22 @@ public class BidService {
             Task task = taskRepo.findById(taskId)
                     .orElseThrow(() -> new RuntimeException("Task not found"));
 
-            if (!task.customerId().equals(customerId)) {
+            if (!task.getCustomerId().equals(customerId)) {
                 throw new RuntimeException("Only task owner can select bid");
             }
 
-            if (task.status() != TaskStatus.PUBLISHED) {
+            if (task.getStatus() != TaskStatus.PUBLISHED) {
                 throw new RuntimeException("Task is not open for selecting bids");
             }
 
-            if (task.executorId() != null) {
+            if (task.getExecutorId() != null) {
                 throw new RuntimeException("Executor already selected");
             }
 
             Bid bid = bidRepo.findById(bidId)
                     .orElseThrow(() -> new RuntimeException("Bid not found"));
 
-            if (!bid.taskId().equals(taskId)) {
+            if (!bid.getTaskId().equals(taskId)) {
                 throw new RuntimeException("Bid does not belong to this task");
             }
 
@@ -94,7 +94,7 @@ public class BidService {
                     status = :status
                 WHERE id = :taskId
         """)
-                    .bind("executorId", bid.executorId())
+                    .bind("executorId", bid.getExecutorId())
                     .bind("status", TaskStatus.IN_PROGRESS.name())
                     .bind("taskId", taskId)
                     .execute();
@@ -106,11 +106,11 @@ public class BidService {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new RuntimeException("Task not found"));
 
-        if (!executorId.equals(task.executorId())) {
+        if (!executorId.equals(task.getExecutorId())) {
             throw new RuntimeException("Only assigned executor can complete task");
         }
 
-        if (task.status() != TaskStatus.IN_PROGRESS) {
+        if (task.getStatus() != TaskStatus.IN_PROGRESS) {
             throw new RuntimeException("Task not in progress");
         }
 
