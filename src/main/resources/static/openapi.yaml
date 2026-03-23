@@ -12,9 +12,13 @@ tags:
   - name: Bids
   - name: Payments
 
+security:
+  - bearerAuth: [ ]
+
 paths:
   /auth/register:
     post:
+      security: []
       tags: [Auth]
       summary: Register a new user
       parameters:
@@ -37,11 +41,11 @@ paths:
             $ref: '#/components/schemas/Role'
       responses:
         '200':
-          description: Registered user
+          description: JWT token
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
+                $ref: '#/components/schemas/AuthResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
         '409':
@@ -51,6 +55,7 @@ paths:
 
   /auth/login:
     post:
+      security: []
       tags: [Auth]
       summary: Login with email and password
       parameters:
@@ -68,11 +73,11 @@ paths:
             minLength: 1
       responses:
         '200':
-          description: Authenticated user
+          description: JWT token
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
+                $ref: '#/components/schemas/AuthResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -627,6 +632,12 @@ paths:
           $ref: '#/components/responses/InternalError'
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
   parameters:
     IdPath:
       in: path
@@ -757,6 +768,34 @@ components:
           items:
             $ref: '#/components/schemas/FieldViolation'
       required: [timestamp, status, error, code, message, path, requestId]
+
+    AuthUserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        role:
+          type: string
+          enum: [ CUSTOMER, EXECUTOR, ADMIN ]
+        balance:
+          type: integer
+          format: int32
+        blocked:
+          type: boolean
+
+    AuthResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        tokenType:
+          type: string
+          example: Bearer
+        user:
+          $ref: '#/components/schemas/AuthUserResponse'
 
   responses:
     BadRequest:

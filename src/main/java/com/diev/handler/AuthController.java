@@ -1,5 +1,6 @@
 package com.diev.handler;
 
+import com.diev.api.auth.AuthResponse;
 import com.diev.entity.Role;
 import com.diev.entity.User;
 import com.diev.service.AuthService;
@@ -21,7 +22,7 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public User register(
+    public AuthResponse register(
             @RequestParam @NotBlank @Email String email,
             @RequestParam @NotBlank String password,
             @RequestParam @NotNull Role role
@@ -31,7 +32,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public User login(
+    public AuthResponse login(
             @RequestParam @NotBlank @Email String email,
             @RequestParam @NotBlank String password
     ) {

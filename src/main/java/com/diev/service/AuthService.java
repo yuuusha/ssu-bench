@@ -1,5 +1,7 @@
 package com.diev.service;
 
+import com.diev.api.auth.AuthResponse;
+import com.diev.api.auth.AuthUserResponse;
 import com.diev.entity.Role;
 import com.diev.entity.User;
 import com.diev.exception.ConflictException;
@@ -7,6 +9,7 @@ import com.diev.exception.ForbiddenException;
 import com.diev.exception.NotFoundException;
 import com.diev.exception.UnauthorizedException;
 import com.diev.repo.UserRepository;
+import com.diev.security.JwtService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -18,13 +21,18 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
-    public AuthService(UserRepository userRepository) {
+    public AuthService(
+            UserRepository userRepository,
+            JwtService jwtService
+    ) {
         this.userRepository = userRepository;
         this.passwordEncoder = new BCryptPasswordEncoder();
+        this.jwtService = jwtService;
     }
 
-    public User register(String email, String password, Role role) {
+    public AuthResponse register(String email, String password, Role role) {
 
         Optional<User> existing = userRepository.findByEmail(email);
 
@@ -44,11 +52,13 @@ public class AuthService {
                 false
         );
 
-        return userRepository.findById(id)
+        User user = userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("USER_NOT_FOUND", "User not found."));
+
+        return buildAuthResponse(user);
     }
 
-    public User login(String email, String password) {
+    public AuthResponse login(String email, String password) {
 
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new NotFoundException("USER_NOT_FOUND", "User not found."));
@@ -61,6 +71,24 @@ public class AuthService {
             throw new ForbiddenException("USER_BLOCKED", "User is blocked.");
         }
 
-        return user;
+        return buildAuthResponse(user);
+    }
+
+    private AuthResponse buildAuthResponse(User user) {
+        return new AuthResponse(
+                jwtService.generateToken(user),
+                "Bearer",
+                toPublicUser(user)
+        );
+    }
+
+    private AuthUserResponse toPublicUser(User user) {
+        return new AuthUserResponse(
+                user.getId(),
+                user.getEmail(),
+                Role.valueOf(user.getRole()),
+                user.getBalance(),
+                user.getBlocked()
+        );
     }
 }
