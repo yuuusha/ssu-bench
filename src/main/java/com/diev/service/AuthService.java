@@ -2,6 +2,10 @@ package com.diev.service;
 
 import com.diev.entity.Role;
 import com.diev.entity.User;
+import com.diev.exception.ConflictException;
+import com.diev.exception.ForbiddenException;
+import com.diev.exception.NotFoundException;
+import com.diev.exception.UnauthorizedException;
 import com.diev.repo.UserRepository;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -25,7 +29,7 @@ public class AuthService {
         Optional<User> existing = userRepository.findByEmail(email);
 
         if (existing.isPresent()) {
-            throw new RuntimeException("User already exists");
+            throw new ConflictException("USER_ALREADY_EXISTS", "User with this email already exists.");
         }
 
         UUID id = UUID.randomUUID();
@@ -41,20 +45,20 @@ public class AuthService {
         );
 
         return userRepository.findById(id)
-                .orElseThrow();
+                .orElseThrow(() -> new NotFoundException("USER_NOT_FOUND", "User not found."));
     }
 
     public User login(String email, String password) {
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new NotFoundException("USER_NOT_FOUND", "User not found."));
 
         if (!passwordEncoder.matches(password, user.getPassword())) {
-            throw new RuntimeException("Invalid password");
+            throw new UnauthorizedException("INVALID_CREDENTIALS", "Invalid credentials.");
         }
 
         if (user.getBlocked()) {
-            throw new RuntimeException("User blocked");
+            throw new ForbiddenException("USER_BLOCKED", "User is blocked.");
         }
 
         return user;

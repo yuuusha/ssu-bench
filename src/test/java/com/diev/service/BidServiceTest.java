@@ -1,6 +1,9 @@
 package com.diev.service;
 
 import com.diev.entity.*;
+import com.diev.exception.ConflictException;
+import com.diev.exception.ForbiddenException;
+import com.diev.exception.NotFoundException;
 import com.diev.repo.BidRepository;
 import com.diev.repo.TaskRepository;
 import org.jdbi.v3.core.Handle;
@@ -77,10 +80,10 @@ class BidServiceTest {
 
         when(taskRepository.findById(taskId)).thenReturn(Optional.empty());
 
-        RuntimeException ex = assertThrows(RuntimeException.class,
+        NotFoundException ex = assertThrows(NotFoundException.class,
                 () -> bidService.createBid(taskId, UUID.randomUUID()));
 
-        assertEquals("Task not found", ex.getMessage());
+        assertEquals("Task not found.", ex.getMessage());
     }
 
     @Test
@@ -90,10 +93,10 @@ class BidServiceTest {
 
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
 
-        RuntimeException ex = assertThrows(RuntimeException.class,
+        ConflictException ex = assertThrows(ConflictException.class,
                 () -> bidService.createBid(taskId, UUID.randomUUID()));
 
-        assertEquals("Task is not open for bids", ex.getMessage());
+        assertEquals("Task is not open for bids.", ex.getMessage());
         verify(bidRepository, never()).create(any(), any(), any(), any());
     }
 
@@ -117,10 +120,10 @@ class BidServiceTest {
 
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
 
-        RuntimeException ex = assertThrows(RuntimeException.class,
+        ForbiddenException ex = assertThrows(ForbiddenException.class,
                 () -> bidService.markCompleted(taskId, UUID.randomUUID()));
 
-        assertEquals("Only assigned executor can complete task", ex.getMessage());
+        assertEquals("Only assigned executor can complete the task.", ex.getMessage());
         verify(taskRepository, never()).updateStatus(any(), any());
     }
 
@@ -132,10 +135,10 @@ class BidServiceTest {
 
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
 
-        RuntimeException ex = assertThrows(RuntimeException.class,
+        ConflictException ex = assertThrows(ConflictException.class,
                 () -> bidService.markCompleted(taskId, executorId));
 
-        assertEquals("Task not in progress", ex.getMessage());
+        assertEquals("Task is not in progress.", ex.getMessage());
         verify(taskRepository, never()).updateStatus(any(), any());
     }
 

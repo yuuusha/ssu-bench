@@ -2,6 +2,9 @@ package com.diev.service;
 
 import com.diev.entity.Task;
 import com.diev.entity.TaskStatus;
+import com.diev.exception.ConflictException;
+import com.diev.exception.ForbiddenException;
+import com.diev.exception.InsufficientBalanceException;
 import com.diev.repo.PaymentRepository;
 import com.diev.repo.TaskRepository;
 import com.diev.repo.UserRepository;
@@ -93,10 +96,10 @@ class PaymentServiceTest {
         when(handle.attach(PaymentRepository.class)).thenReturn(paymentRepository);
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
 
-        RuntimeException ex = assertThrows(RuntimeException.class,
+        ForbiddenException ex = assertThrows(ForbiddenException.class,
                 () -> paymentService.confirmTask(taskId, customerId));
 
-        assertEquals("Only customer can confirm task", ex.getMessage());
+        assertEquals("Only customer can confirm the task.", ex.getMessage());
         verify(paymentRepository, never()).create(any(), any(), any(), any(), any());
     }
 
@@ -114,10 +117,10 @@ class PaymentServiceTest {
         when(handle.attach(PaymentRepository.class)).thenReturn(paymentRepository);
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
 
-        RuntimeException ex = assertThrows(RuntimeException.class,
+        ConflictException ex = assertThrows(ConflictException.class,
                 () -> paymentService.confirmTask(taskId, customerId));
 
-        assertEquals("Task is not completed by executor", ex.getMessage());
+        assertEquals("Task is not completed by executor.", ex.getMessage());
         verify(paymentRepository, never()).create(any(), any(), any(), any(), any());
     }
 
@@ -135,10 +138,10 @@ class PaymentServiceTest {
         when(handle.attach(PaymentRepository.class)).thenReturn(paymentRepository);
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
 
-        RuntimeException ex = assertThrows(RuntimeException.class,
+        ConflictException ex = assertThrows(ConflictException.class,
                 () -> paymentService.confirmTask(taskId, customerId));
 
-        assertEquals("Executor not assigned", ex.getMessage());
+        assertEquals("Executor not assigned.", ex.getMessage());
         verify(paymentRepository, never()).create(any(), any(), any(), any(), any());
     }
 
@@ -161,10 +164,10 @@ class PaymentServiceTest {
         when(handle.createUpdate(anyString())).thenReturn(update);
         when(update.execute()).thenReturn(0);
 
-        RuntimeException ex = assertThrows(RuntimeException.class,
+        InsufficientBalanceException ex = assertThrows(InsufficientBalanceException.class,
                 () -> paymentService.confirmTask(taskId, customerId));
 
-        assertEquals("Not enough balance", ex.getMessage());
+        assertEquals("Not enough balance.", ex.getMessage());
         verify(paymentRepository, never()).create(any(), any(), any(), any(), any());
     }
 }

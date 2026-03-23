@@ -2,6 +2,9 @@ package com.diev.service;
 
 import com.diev.entity.Role;
 import com.diev.entity.User;
+import com.diev.exception.BadRequestException;
+import com.diev.exception.ConflictException;
+import com.diev.exception.NotFoundException;
 import com.diev.repo.UserRepository;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -35,13 +38,13 @@ public class UserService {
         );
 
         return userRepository.findById(id)
-                .orElseThrow();
+                .orElseThrow(() -> new NotFoundException("USER_NOT_FOUND", "User not found."));
     }
 
     public User updateUser(UUID id, String email, String password, Role role, long balance) {
 
         User existing = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new NotFoundException("USER_NOT_FOUND", "User not found."));
 
         String hash = passwordEncoder.encode(password);
 
@@ -54,13 +57,27 @@ public class UserService {
         );
 
         return userRepository.findById(id)
-                .orElseThrow();
+                .orElseThrow(() -> new NotFoundException("USER_NOT_FOUND", "User not found."));
+    }
+    public User updateUserBalance(UUID id, long balance) {
+
+        User existing = userRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("USER_NOT_FOUND", "User not found."));
+
+        if (balance <= 0) {
+            throw new BadRequestException("INVALID_BALANCE", "Balance must be greater than zero.");
+        }
+
+        userRepository.updateBalance(id, balance);
+
+        return userRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("USER_NOT_FOUND", "User not found."));
     }
 
     public void deleteUser(UUID id) {
 
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new NotFoundException("USER_NOT_FOUND", "User not found."));
 
         userRepository.delete(id);
     }
@@ -68,19 +85,23 @@ public class UserService {
     public User getUser(UUID id) {
 
         return userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new NotFoundException("USER_NOT_FOUND", "User not found."));
     }
 
-    public List<User> getAllUsers() {
-        return userRepository.findAll();
+    public List<User> getAllUsers(int limit, int offset) {
+        return userRepository.findAll(limit, offset);
     }
 
     public void blockUser(UUID id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("USER_NOT_FOUND", "User not found."));
 
         userRepository.block(id);
     }
 
     public void unblockUser(UUID id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("USER_NOT_FOUND", "User not found."));
 
         userRepository.unblock(id);
     }

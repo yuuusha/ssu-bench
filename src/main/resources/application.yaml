@@ -6,3 +6,16 @@ db:
 
 server:
   port: 8080
+  shutdown: graceful
+  tomcat:
+    connection-timeout: 5s
+    keep-alive-timeout: 15s
+
+spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+springdoc:
+  swagger-ui:
+    path: /swagger
+    url: /openapi.yaml

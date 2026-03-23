@@ -2,6 +2,9 @@ package com.diev.handler;
 
 import com.diev.entity.Bid;
 import com.diev.service.BidService;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -9,6 +12,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/bids")
+@Validated
 public class BidController {
 
     private final BidService bidService;
@@ -27,9 +31,11 @@ public class BidController {
     }
 
     @GetMapping("/task/{taskId}")
-    public List<Bid> getBids(@PathVariable UUID taskId) {
+    public List<Bid> getBids(@PathVariable UUID taskId,
+                             @RequestParam(defaultValue = "20") @Positive int limit,
+                             @RequestParam(defaultValue = "0") @PositiveOrZero int offset) {
 
-        return bidService.getBids(taskId);
+        return bidService.getBids(taskId, limit, offset);
     }
 
     @PostMapping("/{bidId}/select")

@@ -2,6 +2,8 @@ package com.diev.service;
 
 import com.diev.entity.Task;
 import com.diev.entity.TaskStatus;
+import com.diev.exception.ConflictException;
+import com.diev.exception.ForbiddenException;
 import com.diev.repo.TaskRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -100,10 +102,10 @@ class TaskServiceTest {
 
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
 
-        RuntimeException ex = assertThrows(RuntimeException.class,
+        ForbiddenException ex = assertThrows(ForbiddenException.class,
                 () -> taskService.cancelTask(taskId, UUID.randomUUID()));
 
-        assertEquals("Only owner can cancel", ex.getMessage());
+        assertEquals("Only the task owner can cancel it.", ex.getMessage());
         verify(taskRepository, never()).cancel(any());
     }
 
@@ -115,10 +117,10 @@ class TaskServiceTest {
 
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
 
-        RuntimeException ex = assertThrows(RuntimeException.class,
+        ConflictException ex = assertThrows(ConflictException.class,
                 () -> taskService.cancelTask(taskId, customerId));
 
-        assertEquals("Completed task cannot be cancelled", ex.getMessage());
+        assertEquals("Completed task cannot be cancelled.", ex.getMessage());
         verify(taskRepository, never()).cancel(any());
     }
 }

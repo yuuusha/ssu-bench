@@ -2,6 +2,7 @@ package com.diev.service;
 
 import com.diev.entity.Role;
 import com.diev.entity.User;
+import com.diev.exception.NotFoundException;
 import com.diev.repo.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -89,15 +90,15 @@ class UserServiceTest {
     }
 
     @Test
-    void getAllUsersReturnsAllUsers() {
+    void getAllUsersReturnsPagedList() {
         List<User> users = List.of(
                 new User(UUID.randomUUID(), "a@example.com", "hash", "CUSTOMER", 0, false),
                 new User(UUID.randomUUID(), "b@example.com", "hash", "EXECUTOR", 10, false)
         );
 
-        when(userRepository.findAll()).thenReturn(users);
+        when(userRepository.findAll(20, 0)).thenReturn(users);
 
-        List<User> result = userService.getAllUsers();
+        List<User> result = userService.getAllUsers(20, 0);
 
         assertEquals(2, result.size());
         assertEquals(users, result);
@@ -106,6 +107,10 @@ class UserServiceTest {
     @Test
     void blockAndUnblockUserWork() {
         UUID id = UUID.randomUUID();
+
+        when(userRepository.findById(id))
+                .thenReturn(Optional.of(new User(id, "test@example.com", "hash", "CUSTOMER", 0, false)))
+                .thenReturn(Optional.of(new User(id, "test@example.com", "hash", "CUSTOMER", 0, true)));
 
         userService.blockUser(id);
         userService.unblockUser(id);
@@ -120,7 +125,7 @@ class UserServiceTest {
 
         when(userRepository.findById(id)).thenReturn(Optional.empty());
 
-        RuntimeException ex = assertThrows(RuntimeException.class, () -> userService.getUser(id));
-        assertEquals("User not found", ex.getMessage());
+        NotFoundException ex = assertThrows(NotFoundException.class, () -> userService.getUser(id));
+        assertEquals("User not found.", ex.getMessage());
     }
 }

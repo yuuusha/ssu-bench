@@ -36,8 +36,11 @@ public interface BidRepository {
         SELECT *
         FROM bids
         WHERE task_id = :taskId
+        LIMIT :limit OFFSET :offset
     """)
-    List<Bid> findByTask(@Bind("taskId") UUID taskId);
+    List<Bid> findByTask(@Bind("taskId") UUID taskId,
+                         @Bind("limit") int limit,
+                         @Bind("offset") int offset);
 
     @SqlUpdate("""
         UPDATE bids

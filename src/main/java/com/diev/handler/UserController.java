@@ -3,6 +3,8 @@ package com.diev.handler;
 import com.diev.entity.Role;
 import com.diev.entity.User;
 import com.diev.service.UserService;
+import jakarta.validation.constraints.*;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -10,6 +12,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/users")
+@Validated
 public class UserController {
 
     private final UserService userService;
@@ -25,16 +28,19 @@ public class UserController {
     }
 
     @GetMapping
-    public List<User> getAllUsers() {
+    public List<User> getAllUsers(
+            @RequestParam(defaultValue = "20") @Positive int limit,
+            @RequestParam(defaultValue = "0") @PositiveOrZero int offset
+    ) {
 
-        return userService.getAllUsers();
+        return userService.getAllUsers(limit, offset);
     }
 
     @PostMapping
     public User createUser(
-            @RequestParam String email,
-            @RequestParam String password,
-            @RequestParam Role role
+            @RequestParam @NotBlank @Email String email,
+            @RequestParam @NotBlank @Size(min = 8, max = 72) String password,
+            @RequestParam @NotNull Role role
     ) {
         return userService.createUser(email, password, role);
     }
@@ -42,12 +48,20 @@ public class UserController {
     @PutMapping("/{id}")
     public User updateUser(
             @PathVariable UUID id,
-            @RequestParam String email,
-            @RequestParam String password,
-            @RequestParam Role role,
-            @RequestParam long balance
+            @RequestParam @NotBlank @Email String email,
+            @RequestParam @NotBlank String password,
+            @RequestParam @NotNull Role role,
+            @RequestParam @PositiveOrZero long balance
     ) {
         return userService.updateUser(id, email, password, role, balance);
+    }
+
+    @PostMapping("/{id}/balance")
+    public User updateUserBalance(
+            @PathVariable UUID id,
+            @RequestParam @Positive long balance
+    ) {
+        return userService.updateUserBalance(id, balance);
     }
 
     @DeleteMapping("/{id}")

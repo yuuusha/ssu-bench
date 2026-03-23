@@ -1,12 +1,14 @@
 package com.diev.handler;
 
 import com.diev.service.PaymentService;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/payments")
+@Validated
 public class PaymentController {
 
     private final PaymentService paymentService;

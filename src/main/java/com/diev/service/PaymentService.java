@@ -3,6 +3,10 @@ package com.diev.service;
 import com.diev.entity.Task;
 import com.diev.entity.TaskStatus;
 import com.diev.entity.User;
+import com.diev.exception.ConflictException;
+import com.diev.exception.ForbiddenException;
+import com.diev.exception.InsufficientBalanceException;
+import com.diev.exception.NotFoundException;
 import com.diev.repo.PaymentRepository;
 import com.diev.repo.TaskRepository;
 import com.diev.repo.UserRepository;
@@ -30,20 +34,20 @@ public class PaymentService {
             PaymentRepository paymentRepo = handle.attach(PaymentRepository.class);
 
             Task task = taskRepo.findById(taskId)
-                    .orElseThrow(() -> new RuntimeException("Task not found"));
+                    .orElseThrow(() -> new NotFoundException("TASK_NOT_FOUND", "Task not found."));
 
             if (!task.getCustomerId().equals(customerId)) {
-                throw new RuntimeException("Only customer can confirm task");
+                throw new ForbiddenException("ONLY_CUSTOMER_CAN_CONFIRM", "Only customer can confirm the task.");
             }
 
             if (task.getStatus() != TaskStatus.DONE) {
-                throw new RuntimeException("Task is not completed by executor");
+                throw new ConflictException("TASK_NOT_DONE", "Task is not completed by executor.");
             }
 
             UUID executorId = task.getExecutorId();
 
             if (executorId == null) {
-                throw new RuntimeException("Executor not assigned");
+                throw new ConflictException("EXECUTOR_NOT_ASSIGNED", "Executor not assigned.");
             }
 
             int reward = task.getReward();
@@ -60,7 +64,7 @@ public class PaymentService {
                     .execute();
 
             if (updated == 0) {
-                throw new RuntimeException("Not enough balance");
+                throw new InsufficientBalanceException();
             }
 
             // начисляем исполнителю

@@ -1,5 +1,6 @@
 package com.diev.repo;
 
+import com.diev.entity.Task;
 import com.diev.entity.User;
 import org.jdbi.v3.sqlobject.config.RegisterBeanMapper;
 import org.jdbi.v3.sqlobject.statement.SqlQuery;
@@ -29,8 +30,15 @@ public interface UserRepository {
     """)
     Optional<User> findByEmail(@Bind("email") String email);
 
-    @SqlQuery("SELECT * FROM users")
-    List<User> findAll();
+    @SqlQuery("""
+        SELECT *
+        FROM users
+        LIMIT :limit OFFSET :offset
+    """)
+    List<User> findAll(
+            @Bind("limit") int limit,
+            @Bind("offset") int offset
+    );
 
     @SqlUpdate("""
         INSERT INTO users (id, email, password, role, balance, blocked)
