@@ -3,12 +3,17 @@ package com.diev.controller;
 import com.diev.api.auth.AuthResponse;
 import com.diev.entity.Role;
 import com.diev.service.AuthService;
+import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
+import jakarta.annotation.Resource;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 @RestController
 @RequestMapping("/auth")
@@ -18,20 +23,26 @@ public class AuthController {
 
     private final AuthService authService;
 
+    @Resource(name = "controllerExecutor")
+    private Executor controllerExecutor;
+
+    @TimeLimiter(name = "http-controller")
     @PostMapping("/register")
-    public AuthResponse register(
+    public CompletableFuture<AuthResponse> register(
             @RequestParam @NotBlank @Email String email,
             @RequestParam @NotBlank String password,
             @RequestParam @NotNull Role role
     ) {
-        return authService.register(email, password, role);
+        return CompletableFuture.supplyAsync(() -> authService.register(email, password, role), controllerExecutor);
     }
 
+    @TimeLimiter(name = "http-controller")
     @PostMapping("/login")
-    public AuthResponse login(
+    public CompletableFuture<AuthResponse> login(
             @RequestParam @NotBlank @Email String email,
             @RequestParam @NotBlank String password
     ) {
-        return authService.login(email, password);
+        return CompletableFuture.supplyAsync(() -> authService.login(email, password), controllerExecutor);
     }
+
 }

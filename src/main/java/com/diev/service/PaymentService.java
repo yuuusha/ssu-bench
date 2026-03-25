@@ -2,16 +2,11 @@ package com.diev.service;
 
 import com.diev.entity.Task;
 import com.diev.entity.TaskStatus;
-import com.diev.entity.User;
-import com.diev.exception.ConflictException;
-import com.diev.exception.ForbiddenException;
-import com.diev.exception.InsufficientBalanceException;
-import com.diev.exception.NotFoundException;
+import com.diev.exception.*;
 import com.diev.repo.PaymentRepository;
 import com.diev.repo.TaskRepository;
 import com.diev.repo.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.jdbi.v3.core.Jdbi;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,23 +27,22 @@ public class PaymentService {
     @Transactional
     public void confirmTask(UUID taskId, UUID customerId) {
         Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new NotFoundException("TASK_NOT_FOUND", "Task not found."));
+                .orElseThrow(() -> new NotFoundException(ErrorCode.TASK_NOT_FOUND));
 
         accessService.requireOwnerOrAdmin(
                 customerId,
                 task.getCustomerId(),
-                "ONLY_CUSTOMER_CAN_CONFIRM",
-                "Only customer can confirm the task."
+                ErrorCode.ONLY_CUSTOMER_CAN_CONFIRM
         );
 
         if (task.getStatus() != TaskStatus.DONE) {
-            throw new ConflictException("TASK_NOT_DONE", "Task is not completed by executor.");
+            throw new ConflictException(ErrorCode.TASK_NOT_DONE);
         }
 
         UUID executorId = task.getExecutorId();
 
         if (executorId == null) {
-            throw new ConflictException("EXECUTOR_NOT_ASSIGNED", "Executor not assigned.");
+            throw new ConflictException(ErrorCode.EXECUTOR_NOT_ASSIGNED);
         }
 
         int reward = task.getReward();

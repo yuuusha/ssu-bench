@@ -4,14 +4,10 @@ import com.diev.api.auth.AuthResponse;
 import com.diev.api.auth.AuthUserResponse;
 import com.diev.entity.Role;
 import com.diev.entity.User;
-import com.diev.exception.ConflictException;
-import com.diev.exception.ForbiddenException;
-import com.diev.exception.NotFoundException;
-import com.diev.exception.UnauthorizedException;
+import com.diev.exception.*;
 import com.diev.repo.UserRepository;
 import com.diev.security.JwtService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -30,7 +26,7 @@ public class AuthService {
         Optional<User> existing = userRepository.findByEmail(email);
 
         if (existing.isPresent()) {
-            throw new ConflictException("USER_ALREADY_EXISTS", "User with this email already exists.");
+            throw new ConflictException(ErrorCode.USER_ALREADY_EXISTS);
         }
 
         UUID id = UUID.randomUUID();
@@ -46,21 +42,21 @@ public class AuthService {
         );
 
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("USER_NOT_FOUND", "User not found."));
+                .orElseThrow(() -> new NotFoundException(ErrorCode.USER_NOT_FOUND));
 
         return buildAuthResponse(user);
     }
 
     public AuthResponse login(String email, String password) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new NotFoundException("USER_NOT_FOUND", "User not found."));
+                .orElseThrow(() -> new NotFoundException(ErrorCode.USER_NOT_FOUND));
 
         if (!passwordEncoder.matches(password, user.getPassword())) {
-            throw new UnauthorizedException("INVALID_CREDENTIALS", "Invalid credentials.");
+            throw new UnauthorizedException(ErrorCode.INVALID_CREDENTIALS);
         }
 
         if (user.getBlocked()) {
-            throw new ForbiddenException("USER_BLOCKED", "User is blocked.");
+            throw new ForbiddenException(ErrorCode.USER_BLOCKED);
         }
 
         return buildAuthResponse(user);

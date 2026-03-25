@@ -3,11 +3,9 @@ package com.diev.repo;
 import com.diev.entity.Payment;
 import org.jdbi.v3.sqlobject.config.RegisterBeanMapper;
 import org.jdbi.v3.sqlobject.statement.SqlUpdate;
-import org.jdbi.v3.sqlobject.statement.SqlQuery;
 import org.jdbi.v3.sqlobject.customizer.Bind;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 
 @RegisterBeanMapper(Payment.class)
@@ -25,11 +23,4 @@ public interface PaymentRepository {
             @Bind("createdAt") LocalDateTime createdAt
     );
 
-    @SqlQuery("""
-        SELECT *
-        FROM payments
-        WHERE from_user = :userId
-        OR to_user = :userId
-    """)
-    List<Payment> findByUser(@Bind("userId") UUID userId);
 }

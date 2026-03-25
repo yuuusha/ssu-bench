@@ -4,6 +4,7 @@ import com.diev.api.error.ApiErrorResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.MDC;
 import org.springframework.http.MediaType;
@@ -22,12 +23,10 @@ public class JsonAuthenticationEntryPoint implements AuthenticationEntryPoint {
     private final ObjectMapper objectMapper;
 
     @Override
-    public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException) throws IOException {
+    public void commence(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, AuthenticationException authException) throws IOException {
         write(
                 response,
                 request,
-                401,
-                "UNAUTHORIZED",
                 authException.getMessage() == null || authException.getMessage().isBlank()
                         ? "Authentication required."
                         : authException.getMessage()
@@ -37,19 +36,17 @@ public class JsonAuthenticationEntryPoint implements AuthenticationEntryPoint {
     private void write(
             HttpServletResponse response,
             HttpServletRequest request,
-            int status,
-            String code,
             String message
     ) throws IOException {
-        response.setStatus(status);
+        response.setStatus(401);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
 
         ApiErrorResponse body = new ApiErrorResponse(
                 Instant.now(),
-                status,
-                HttpStatusText.reason(status),
-                code,
+                401,
+                HttpStatusText.reason(),
+                "UNAUTHORIZED",
                 message,
                 request.getRequestURI(),
                 requestId(),
@@ -68,11 +65,8 @@ public class JsonAuthenticationEntryPoint implements AuthenticationEntryPoint {
     }
 
     private static final class HttpStatusText {
-        private static String reason(int status) {
-            return switch (status) {
-                case 401 -> "Unauthorized";
-                default -> "Error";
-            };
+        private static String reason() {
+            return "Unauthorized";
         }
     }
 }

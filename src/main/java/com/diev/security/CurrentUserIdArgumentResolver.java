@@ -1,5 +1,6 @@
 package com.diev.security;
 
+import lombok.NonNull;
 import org.springframework.core.MethodParameter;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.core.Authentication;
@@ -22,9 +23,9 @@ public class CurrentUserIdArgumentResolver implements HandlerMethodArgumentResol
 
     @Override
     public Object resolveArgument(
-            MethodParameter parameter,
+            @NonNull MethodParameter parameter,
             ModelAndViewContainer mavContainer,
-            NativeWebRequest webRequest,
+            @NonNull NativeWebRequest webRequest,
             org.springframework.web.bind.support.WebDataBinderFactory binderFactory
     ) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();

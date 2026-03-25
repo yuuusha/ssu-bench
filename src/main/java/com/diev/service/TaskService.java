@@ -2,11 +2,7 @@ package com.diev.service;
 
 import com.diev.entity.Task;
 import com.diev.entity.TaskStatus;
-import com.diev.entity.User;
-import com.diev.exception.BadRequestException;
-import com.diev.exception.ConflictException;
-import com.diev.exception.ForbiddenException;
-import com.diev.exception.NotFoundException;
+import com.diev.exception.*;
 import com.diev.repo.TaskRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -30,7 +26,7 @@ public class TaskService {
             Integer reward
     ) {
         if (reward == null || reward <= 0) {
-            throw new BadRequestException("INVALID_REWARD", "Reward must be greater than zero.");
+            throw new BadRequestException(ErrorCode.INVALID_REWARD);
         }
 
         UUID id = UUID.randomUUID();
@@ -45,27 +41,26 @@ public class TaskService {
         );
 
         return taskRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("TASK_NOT_FOUND", "Task not found."));
+                .orElseThrow(() -> new NotFoundException(ErrorCode.TASK_NOT_FOUND));
     }
 
     @PreAuthorize("hasAnyRole('CUSTOMER', 'ADMIN')")
     public Task updateTask(UUID id, String title, String description, Integer reward, String status, UUID currentUserId) {
         Task existing = taskRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("TASK_NOT_FOUND", "Task not found."));
+                .orElseThrow(() -> new NotFoundException(ErrorCode.TASK_NOT_FOUND));
 
         accessService.requireOwnerOrAdmin(
                 currentUserId,
                 existing.getCustomerId(),
-                "ONLY_OWNER_CAN_UPDATE_TASK",
-                "Only task owner can update it."
+                ErrorCode.ONLY_OWNER_CAN_UPDATE_TASK
         );
 
         if (reward == null || reward <= 0) {
-            throw new BadRequestException("INVALID_REWARD", "Reward must be greater than zero.");
+            throw new BadRequestException(ErrorCode.INVALID_REWARD);
         }
 
         if (existing.getStatus() != TaskStatus.CREATED) {
-            throw new ConflictException("TASK_NOT_EDITABLE", "Task cannot be updated in its current state.");
+            throw new ConflictException(ErrorCode.TASK_NOT_EDITABLE);
         }
 
         taskRepository.update(
@@ -77,34 +72,33 @@ public class TaskService {
         );
 
         return taskRepository.findById(id)
-                .orElseThrow(() -> new ConflictException("TASK_NOT_EDITABLE", "Task cannot be updated in its current state."));
+                .orElseThrow(() -> new ConflictException(ErrorCode.TASK_NOT_EDITABLE));
     }
 
     @PreAuthorize("hasAnyRole('CUSTOMER', 'ADMIN')")
     public Task publishTask(UUID id, UUID currentUserId) {
         Task existing = taskRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("TASK_NOT_FOUND", "Task not found."));
+                .orElseThrow(() -> new NotFoundException(ErrorCode.TASK_NOT_FOUND));
 
         accessService.requireOwnerOrAdmin(
                 currentUserId,
                 existing.getCustomerId(),
-                "ONLY_OWNER_CAN_PUBLISH_TASK",
-                "Only task owner can publish it."
+                ErrorCode.ONLY_OWNER_CAN_PUBLISH_TASK
         );
 
         if (existing.getStatus() != TaskStatus.CREATED) {
-            throw new ConflictException("TASK_NOT_PUBLISHABLE", "Task can be published only from CREATED status.");
+            throw new ConflictException(ErrorCode.TASK_NOT_PUBLISHABLE);
         }
 
         taskRepository.updateStatus(id, TaskStatus.PUBLISHED);
 
         return taskRepository.findById(id)
-                .orElseThrow(() -> new ConflictException("TASK_NOT_EDITABLE", "Task cannot be updated in its current state."));
+                .orElseThrow(() -> new ConflictException(ErrorCode.TASK_NOT_EDITABLE));
     }
 
     public Task getTask(UUID id) {
         return taskRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("TASK_NOT_FOUND", "Task not found."));
+                .orElseThrow(() -> new NotFoundException(ErrorCode.TASK_NOT_FOUND));
     }
 
     public List<Task> getTasks(int limit, int offset) {
@@ -114,17 +108,16 @@ public class TaskService {
     @PreAuthorize("hasAnyRole('CUSTOMER', 'ADMIN')")
     public void cancelTask(UUID taskId, UUID customerId) {
         Task existing = taskRepository.findById(taskId)
-                .orElseThrow(() -> new NotFoundException("TASK_NOT_FOUND", "Task not found."));
+                .orElseThrow(() -> new NotFoundException(ErrorCode.TASK_NOT_FOUND));
 
         accessService.requireOwnerOrAdmin(
                 customerId,
                 existing.getCustomerId(),
-                "ONLY_OWNER_CAN_CANCEL",
-                "Only the task owner can cancel it."
+                ErrorCode.ONLY_OWNER_CAN_CANCEL
         );
 
         if (existing.getStatus() == TaskStatus.DONE || existing.getStatus() == TaskStatus.CONFIRMED) {
-            throw new ConflictException("TASK_ALREADY_DONE", "Completed task cannot be cancelled.");
+            throw new ConflictException(ErrorCode.TASK_ALREADY_DONE);
         }
 
         taskRepository.cancel(taskId);

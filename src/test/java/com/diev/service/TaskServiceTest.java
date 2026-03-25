@@ -3,6 +3,7 @@ package com.diev.service;
 import com.diev.entity.Task;
 import com.diev.entity.TaskStatus;
 import com.diev.exception.ConflictException;
+import com.diev.exception.ErrorCode;
 import com.diev.exception.ForbiddenException;
 import com.diev.repo.TaskRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -74,7 +75,7 @@ class TaskServiceTest {
         Task updated = new Task(taskId, title, description, reward, TaskStatus.CREATED, customerId, null);
 
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(existing), Optional.of(updated));
-        doNothing().when(accessService).requireOwnerOrAdmin(currentUserId, customerId, "ONLY_OWNER_CAN_UPDATE_TASK", "Only task owner can update it.");
+        doNothing().when(accessService).requireOwnerOrAdmin(currentUserId, customerId, ErrorCode.ONLY_OWNER_CAN_UPDATE_TASK);
 
         Task result = taskService.updateTask(taskId, title, description, reward, status.name(), currentUserId);
 
@@ -93,7 +94,7 @@ class TaskServiceTest {
         Task published = new Task(taskId, "Title", "Desc", 100, TaskStatus.PUBLISHED, customerId, null);
 
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task), Optional.of(published));
-        doNothing().when(accessService).requireOwnerOrAdmin(currentUserId, customerId, "ONLY_OWNER_CAN_PUBLISH_TASK", "Only task owner can publish it.");
+        doNothing().when(accessService).requireOwnerOrAdmin(currentUserId, customerId, ErrorCode.ONLY_OWNER_CAN_PUBLISH_TASK);
 
         Task result = taskService.publishTask(taskId, currentUserId);
 
@@ -109,7 +110,7 @@ class TaskServiceTest {
         Task task = new Task(taskId, "Title", "Desc", 100, TaskStatus.PUBLISHED, customerId, null);
 
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
-        doNothing().when(accessService).requireOwnerOrAdmin(currentUserId, customerId, "ONLY_OWNER_CAN_PUBLISH_TASK", "Only task owner can publish it.");
+        doNothing().when(accessService).requireOwnerOrAdmin(currentUserId, customerId, ErrorCode.ONLY_OWNER_CAN_PUBLISH_TASK);
 
         ConflictException ex = assertThrows(ConflictException.class,
                 () -> taskService.publishTask(taskId, currentUserId));
@@ -152,7 +153,7 @@ class TaskServiceTest {
         Task task = new Task(taskId, "Title", "Desc", 100, TaskStatus.PUBLISHED, customerId, null);
 
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
-        doNothing().when(accessService).requireOwnerOrAdmin(currentUserId, customerId, "ONLY_OWNER_CAN_CANCEL", "Only the task owner can cancel it.");
+        doNothing().when(accessService).requireOwnerOrAdmin(currentUserId, customerId, ErrorCode.ONLY_OWNER_CAN_CANCEL);
 
         taskService.cancelTask(taskId, currentUserId);
 
@@ -167,9 +168,9 @@ class TaskServiceTest {
         Task task = new Task(taskId, "Title", "Desc", 100, TaskStatus.PUBLISHED, customerId, null);
 
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
-        doThrow(new ForbiddenException("ONLY_OWNER_CAN_CANCEL", "Only the task owner can cancel it."))
+        doThrow(new ForbiddenException(ErrorCode.ONLY_OWNER_CAN_CANCEL))
                 .when(accessService)
-                .requireOwnerOrAdmin(eq(currentUserId), eq(customerId), anyString(), anyString());
+                .requireOwnerOrAdmin(eq(currentUserId), eq(customerId), eq(ErrorCode.ONLY_OWNER_CAN_CANCEL));
 
         ForbiddenException ex = assertThrows(ForbiddenException.class,
                 () -> taskService.cancelTask(taskId, currentUserId));
@@ -186,7 +187,7 @@ class TaskServiceTest {
         Task task = new Task(taskId, "Title", "Desc", 100, TaskStatus.CONFIRMED, customerId, UUID.randomUUID());
 
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
-        doNothing().when(accessService).requireOwnerOrAdmin(currentUserId, customerId, "ONLY_OWNER_CAN_CANCEL", "Only the task owner can cancel it.");
+        doNothing().when(accessService).requireOwnerOrAdmin(currentUserId, customerId, ErrorCode.ONLY_OWNER_CAN_CANCEL);
 
         ConflictException ex = assertThrows(ConflictException.class,
                 () -> taskService.cancelTask(taskId, currentUserId));

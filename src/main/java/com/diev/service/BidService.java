@@ -2,12 +2,11 @@ package com.diev.service;
 
 import com.diev.entity.*;
 import com.diev.exception.ConflictException;
-import com.diev.exception.ForbiddenException;
+import com.diev.exception.ErrorCode;
 import com.diev.exception.NotFoundException;
 import com.diev.repo.BidRepository;
 import com.diev.repo.TaskRepository;
 import lombok.RequiredArgsConstructor;
-import org.jdbi.v3.core.Jdbi;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,18 +25,18 @@ public class BidService {
     @PreAuthorize("hasAnyRole('EXECUTOR', 'ADMIN')")
     public Bid createBid(UUID taskId, UUID executorId) {
         Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new NotFoundException("TASK_NOT_FOUND", "Task not found."));
+                .orElseThrow(() -> new NotFoundException(ErrorCode.TASK_NOT_FOUND));
 
         if (task.getCustomerId().equals(executorId)) {
-            throw new ConflictException("CUSTOMER_CANNOT_BID", "Task owner cannot create a bid for own task.");
+            throw new ConflictException(ErrorCode.CUSTOMER_CANNOT_BID);
         }
 
         if (task.getStatus() != TaskStatus.PUBLISHED) {
-            throw new ConflictException("TASK_NOT_OPEN_FOR_BIDS", "Task is not open for bids.");
+            throw new ConflictException(ErrorCode.TASK_NOT_OPEN_FOR_BIDS);
         }
 
         if (bidRepository.countByTaskIdAndExecutorId(taskId, executorId) > 0) {
-            throw new ConflictException("BID_ALREADY_EXISTS", "Executor already has a bid for this task.");
+            throw new ConflictException(ErrorCode.BID_ALREADY_EXISTS);
         }
 
         UUID bidId = UUID.randomUUID();
@@ -50,7 +49,7 @@ public class BidService {
         );
 
         return bidRepository.findById(bidId)
-                .orElseThrow(() -> new ConflictException("BID_NOT_CREATED", "Bid not created."));
+                .orElseThrow(() -> new ConflictException(ErrorCode.BID_NOT_CREATED));
     }
 
     public List<Bid> getBids(UUID taskId, int limit, int offset) {
@@ -61,26 +60,25 @@ public class BidService {
     @Transactional
     public void selectBid(UUID bidId, UUID customerId) {
         Bid bid = bidRepository.findById(bidId)
-                .orElseThrow(() -> new NotFoundException("BID_NOT_FOUND", "Bid not found."));
+                .orElseThrow(() -> new NotFoundException(ErrorCode.BID_NOT_FOUND));
 
         UUID taskId = bid.getTaskId();
 
         Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new NotFoundException("TASK_NOT_FOUND", "Task not found."));
+                .orElseThrow(() -> new NotFoundException(ErrorCode.TASK_NOT_FOUND));
 
         accessService.requireOwnerOrAdmin(
                 customerId,
                 task.getCustomerId(),
-                "ONLY_OWNER_CAN_SELECT_BID",
-                "Only task owner can select bid."
+                ErrorCode.ONLY_OWNER_CAN_SELECT_BID
         );
 
         if (task.getStatus() != TaskStatus.PUBLISHED) {
-            throw new ConflictException("TASK_NOT_OPEN_FOR_SELECTION", "Task is not open for selecting bids.");
+            throw new ConflictException(ErrorCode.TASK_NOT_OPEN_FOR_SELECTION);
         }
 
         if (task.getExecutorId() != null) {
-            throw new ConflictException("EXECUTOR_ALREADY_SELECTED", "Executor already selected.");
+            throw new ConflictException(ErrorCode.EXECUTOR_ALREADY_SELECTED);
         }
 
         bidRepository.updateStatus(bidId, BidStatus.ACCEPTED);
@@ -91,21 +89,20 @@ public class BidService {
     @PreAuthorize("hasAnyRole('EXECUTOR', 'ADMIN')")
     public void markCompleted(UUID taskId, UUID executorId) {
         Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new NotFoundException("TASK_NOT_FOUND", "Task not found."));
+                .orElseThrow(() -> new NotFoundException(ErrorCode.TASK_NOT_FOUND));
 
         if (task.getExecutorId() == null) {
-            throw new ConflictException("EXECUTOR_NOT_ASSIGNED", "Executor not assigned.");
+            throw new ConflictException(ErrorCode.EXECUTOR_NOT_ASSIGNED);
         }
 
         accessService.requireOwnerOrAdmin(
                 executorId,
                 task.getExecutorId(),
-                "ONLY_ASSIGNED_EXECUTOR_CAN_COMPLETE",
-                "Only assigned executor can complete the task."
+                ErrorCode.ONLY_ASSIGNED_EXECUTOR_CAN_COMPLETE
         );
 
         if (task.getStatus() != TaskStatus.IN_PROGRESS) {
-            throw new ConflictException("TASK_NOT_IN_PROGRESS", "Task is not in progress.");
+            throw new ConflictException(ErrorCode.TASK_NOT_IN_PROGRESS);
         }
 
         taskRepository.updateStatus(taskId, TaskStatus.DONE);

@@ -2,11 +2,15 @@ package com.diev.controller;
 
 import com.diev.security.CurrentUserId;
 import com.diev.service.PaymentService;
+import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
+import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 @RestController
 @RequestMapping("/payments")
@@ -16,11 +20,18 @@ public class PaymentController {
 
     private final PaymentService paymentService;
 
+    @Resource(name = "controllerExecutor")
+    private Executor controllerExecutor;
+
+    @TimeLimiter(name = "http-controller")
     @PostMapping("/confirm")
-    public void confirmTask(
+    public CompletableFuture<Void> confirmTask(
             @RequestParam UUID taskId,
             @CurrentUserId UUID customerId
     ) {
-        paymentService.confirmTask(taskId, customerId);
+        return CompletableFuture.supplyAsync(() -> {
+            paymentService.confirmTask(taskId, customerId);
+            return null;
+        }, controllerExecutor);
     }
 }

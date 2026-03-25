@@ -3,6 +3,8 @@ package com.diev.controller;
 import com.diev.entity.Bid;
 import com.diev.security.CurrentUserId;
 import com.diev.service.BidService;
+import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
+import jakarta.annotation.Resource;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +13,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 @RestController
 @RequestMapping("/bids")
@@ -20,34 +24,49 @@ public class BidController {
 
     private final BidService bidService;
 
+    @Resource(name = "controllerExecutor")
+    private Executor controllerExecutor;
+
+    @TimeLimiter(name = "http-controller")
     @PostMapping
-    public Bid createBid(
+    public CompletableFuture<Bid> createBid(
             @RequestParam UUID taskId,
             @CurrentUserId UUID executorId
     ) {
-        return bidService.createBid(taskId, executorId);
+        return CompletableFuture.supplyAsync(() -> bidService.createBid(taskId, executorId), controllerExecutor);
     }
 
+    @TimeLimiter(name = "http-controller")
     @GetMapping("/task/{taskId}")
-    public List<Bid> getBids(@PathVariable UUID taskId,
-                             @RequestParam(defaultValue = "20") @Positive int limit,
-                             @RequestParam(defaultValue = "0") @PositiveOrZero int offset) {
-        return bidService.getBids(taskId, limit, offset);
+    public CompletableFuture<List<Bid>> getBids(
+            @PathVariable UUID taskId,
+            @RequestParam(defaultValue = "20") @Positive int limit,
+            @RequestParam(defaultValue = "0") @PositiveOrZero int offset
+    ) {
+        return CompletableFuture.supplyAsync(() -> bidService.getBids(taskId, limit, offset), controllerExecutor);
     }
 
+    @TimeLimiter(name = "http-controller")
     @PostMapping("/{bidId}/select")
-    public void selectBid(
+    public CompletableFuture<Void> selectBid(
             @PathVariable UUID bidId,
             @CurrentUserId UUID customerId
     ) {
-        bidService.selectBid(bidId, customerId);
+        return CompletableFuture.supplyAsync(() -> {
+            bidService.selectBid(bidId, customerId);
+            return null;
+        }, controllerExecutor);
     }
 
+    @TimeLimiter(name = "http-controller")
     @PostMapping("/task/{taskId}/complete")
-    public void markCompleted(
+    public CompletableFuture<Void> markCompleted(
             @PathVariable UUID taskId,
             @CurrentUserId UUID executorId
     ) {
-        bidService.markCompleted(taskId, executorId);
+        return CompletableFuture.supplyAsync(() -> {
+            bidService.markCompleted(taskId, executorId);
+            return null;
+        }, controllerExecutor);
     }
 }

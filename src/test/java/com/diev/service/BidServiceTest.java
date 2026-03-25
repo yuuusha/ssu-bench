@@ -2,14 +2,11 @@ package com.diev.service;
 
 import com.diev.entity.*;
 import com.diev.exception.ConflictException;
+import com.diev.exception.ErrorCode;
 import com.diev.exception.ForbiddenException;
 import com.diev.exception.NotFoundException;
 import com.diev.repo.BidRepository;
 import com.diev.repo.TaskRepository;
-import org.jdbi.v3.core.Handle;
-import org.jdbi.v3.core.HandleConsumer;
-import org.jdbi.v3.core.Jdbi;
-import org.jdbi.v3.core.statement.Update;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,7 +19,6 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -200,9 +196,9 @@ class BidServiceTest {
 
         when(bidRepository.findById(bidId)).thenReturn(Optional.of(bid));
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
-        doThrow(new ForbiddenException("ONLY_OWNER_CAN_SELECT_BID", "Only task owner can select bid."))
+        doThrow(new ForbiddenException(ErrorCode.ONLY_OWNER_CAN_SELECT_BID))
                 .when(accessService)
-                .requireOwnerOrAdmin(eq(customerId), eq(ownerId), anyString(), anyString());
+                .requireOwnerOrAdmin(eq(customerId), eq(ownerId), eq(ErrorCode.ONLY_OWNER_CAN_SELECT_BID));
 
         ForbiddenException ex = assertThrows(ForbiddenException.class,
                 () -> bidService.selectBid(bidId, customerId));

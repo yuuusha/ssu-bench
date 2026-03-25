@@ -3,15 +3,12 @@ package com.diev.service;
 import com.diev.entity.Task;
 import com.diev.entity.TaskStatus;
 import com.diev.exception.ConflictException;
+import com.diev.exception.ErrorCode;
 import com.diev.exception.ForbiddenException;
 import com.diev.exception.InsufficientBalanceException;
 import com.diev.repo.PaymentRepository;
 import com.diev.repo.TaskRepository;
 import com.diev.repo.UserRepository;
-import org.jdbi.v3.core.Handle;
-import org.jdbi.v3.core.HandleConsumer;
-import org.jdbi.v3.core.Jdbi;
-import org.jdbi.v3.core.statement.Update;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -71,14 +68,13 @@ class PaymentServiceTest {
     void confirmTaskThrowsWhenCalledByNotOwner() {
         UUID taskId = UUID.randomUUID();
         UUID customerId = UUID.randomUUID();
-        UUID ownerId = UUID.randomUUID();
 
         Task task = new Task(taskId, "Title", "Desc", 100, TaskStatus.DONE, UUID.randomUUID(), UUID.randomUUID());
 
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
-        doThrow(new ForbiddenException("ONLY_CUSTOMER_CAN_CONFIRM", "Only customer can confirm the task."))
+        doThrow(new ForbiddenException(ErrorCode.ONLY_CUSTOMER_CAN_CONFIRM))
                 .when(accessService)
-                .requireOwnerOrAdmin(eq(customerId), any(), anyString(), anyString());
+                .requireOwnerOrAdmin(eq(customerId), any(), eq(ErrorCode.ONLY_CUSTOMER_CAN_CONFIRM));
 
         ForbiddenException ex = assertThrows(ForbiddenException.class,
                 () -> paymentService.confirmTask(taskId, customerId));
@@ -98,7 +94,7 @@ class PaymentServiceTest {
         Task task = new Task(taskId, "Title", "Desc", 100, TaskStatus.IN_PROGRESS, customerId, UUID.randomUUID());
 
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
-        doNothing().when(accessService).requireOwnerOrAdmin(eq(customerId), eq(customerId), anyString(), anyString());
+        doNothing().when(accessService).requireOwnerOrAdmin(eq(customerId), eq(customerId), eq(ErrorCode.ONLY_CUSTOMER_CAN_CONFIRM));
 
         ConflictException ex = assertThrows(ConflictException.class,
                 () -> paymentService.confirmTask(taskId, customerId));

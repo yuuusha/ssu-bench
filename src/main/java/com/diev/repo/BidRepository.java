@@ -52,15 +52,6 @@ public interface BidRepository {
             @Bind("status") BidStatus status
     );
 
-    @SqlQuery("""
-        SELECT *
-        FROM bids
-        WHERE task_id = :taskId
-        AND status = 'ACCEPTED'
-        LIMIT 1
-    """)
-    Optional<Bid> findSelectedBid(@Bind("taskId") UUID taskId);
-
     @SqlUpdate("""
         UPDATE bids
         SET status = 'REJECTED'
