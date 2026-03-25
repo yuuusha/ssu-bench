@@ -1,8 +1,11 @@
 package com.diev.exception;
 
+import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
+@Getter
 public abstract class AppException extends RuntimeException {
+
     private final HttpStatus status;
     private final String code;
 
@@ -12,11 +15,4 @@ public abstract class AppException extends RuntimeException {
         this.code = code;
     }
 
-    public HttpStatus getStatus() {
-        return status;
-    }
-
-    public String getCode() {
-        return code;
-    }
 }

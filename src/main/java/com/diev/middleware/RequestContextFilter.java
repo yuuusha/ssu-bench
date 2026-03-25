@@ -17,7 +17,6 @@ public class RequestContextFilter extends OncePerRequestFilter {
     public static final String REQUEST_ID_HEADER = "X-Request-Id";
     public static final String REQUEST_ID_MDC_KEY = "request_id";
     public static final String REQUEST_ID_MDC_COMPAT_KEY = "requestId";
-
     private static final Logger log = LoggerFactory.getLogger(RequestContextFilter.class);
 
     @Override

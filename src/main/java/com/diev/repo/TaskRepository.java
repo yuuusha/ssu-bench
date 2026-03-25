@@ -72,19 +72,19 @@ public interface TaskRepository {
 
     @SqlUpdate("""
         UPDATE tasks
-        SET selected_bid_id = :bidId,
-            status = 'IN_PROGRESS'
-        WHERE id = :taskId
-    """)
-    void assignBid(
-            @Bind("taskId") UUID taskId,
-            @Bind("bidId") UUID bidId
-    );
-
-    @SqlUpdate("""
-        UPDATE tasks
         SET status = 'CANCELLED'
         WHERE id = :id
     """)
     void cancel(@Bind("id") UUID id);
+
+    @SqlUpdate("""
+        UPDATE tasks
+        SET executor_id = :executorId,
+            status = 'IN_PROGRESS'
+        WHERE id = :taskId
+    """)
+    void assignExecutor(
+            @Bind("taskId") UUID taskId,
+            @Bind("executorId") UUID executorId
+    );
 }

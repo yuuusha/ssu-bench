@@ -10,30 +10,23 @@ import com.diev.exception.NotFoundException;
 import com.diev.exception.UnauthorizedException;
 import com.diev.repo.UserRepository;
 import com.diev.security.JwtService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class AuthService {
 
     private final UserRepository userRepository;
-    private final BCryptPasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
-    public AuthService(
-            UserRepository userRepository,
-            JwtService jwtService
-    ) {
-        this.userRepository = userRepository;
-        this.passwordEncoder = new BCryptPasswordEncoder();
-        this.jwtService = jwtService;
-    }
-
     public AuthResponse register(String email, String password, Role role) {
-
         Optional<User> existing = userRepository.findByEmail(email);
 
         if (existing.isPresent()) {
@@ -59,7 +52,6 @@ public class AuthService {
     }
 
     public AuthResponse login(String email, String password) {
-
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new NotFoundException("USER_NOT_FOUND", "User not found."));
 

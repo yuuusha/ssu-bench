@@ -24,11 +24,9 @@ public class AppConfiguration {
         PropertySourcesPlaceholderConfigurer configurer = new PropertySourcesPlaceholderConfigurer();
         MutablePropertySources sources = new MutablePropertySources();
 
-        // .env
         DotenvPropertySource dotenvSource = new DotenvPropertySource(DotenvConfig.defaults());
         sources.addLast(dotenvSource);
 
-        // yaml
         YamlPropertiesFactoryBean yaml = new YamlPropertiesFactoryBean();
         yaml.setResources(new ClassPathResource("application.yaml"));
         Properties yamlProps = yaml.getObject();

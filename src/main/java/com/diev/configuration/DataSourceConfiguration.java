@@ -11,7 +11,6 @@ import javax.sql.DataSource;
 
 @Configuration
 public class DataSourceConfiguration {
-
     @Bean
     @ConfigurationProperties("db.ssu-bench")
     public DataSourceProperties dataSourceProperties() {

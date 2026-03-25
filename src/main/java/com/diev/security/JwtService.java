@@ -3,6 +3,7 @@ package com.diev.security;
 import com.diev.entity.User;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.Mac;
@@ -17,6 +18,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class JwtService {
 
     private static final String HMAC_ALGORITHM = "HmacSHA256";
@@ -25,10 +27,6 @@ public class JwtService {
     private final JwtProperties properties;
     private final ObjectMapper objectMapper;
 
-    public JwtService(JwtProperties properties, ObjectMapper objectMapper) {
-        this.properties = properties;
-        this.objectMapper = objectMapper;
-    }
 
     public String generateToken(User user) {
         Instant now = Instant.now();

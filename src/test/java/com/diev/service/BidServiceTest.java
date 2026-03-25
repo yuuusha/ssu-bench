@@ -35,24 +35,13 @@ class BidServiceTest {
     private TaskRepository taskRepository;
 
     @Mock
-    private Jdbi jdbi;
-
-    @Mock
-    private Handle handle;
+    private CurrentUserAccessService accessService;
 
     private BidService bidService;
 
     @BeforeEach
     void setUp() {
-        bidService = new BidService(bidRepository, taskRepository, jdbi);
-    }
-
-    private void mockTransaction() {
-        doAnswer(invocation -> {
-            HandleConsumer<?> consumer = invocation.getArgument(0);
-            consumer.useHandle(handle);
-            return null;
-        }).when(jdbi).useTransaction(any());
+        bidService = new BidService(bidRepository, taskRepository, accessService);
     }
 
     @Test
@@ -60,28 +49,31 @@ class BidServiceTest {
         UUID taskId = UUID.randomUUID();
         UUID executorId = UUID.randomUUID();
         UUID bidId = UUID.randomUUID();
+        UUID customerId = UUID.randomUUID();
 
-        Task task = new Task(taskId, "Title", "Desc", 100, TaskStatus.PUBLISHED, UUID.randomUUID(), null);
+        Task task = new Task(taskId, "Title", "Desc", 100, TaskStatus.PUBLISHED, customerId, null);
+        Bid created = new Bid(bidId, taskId, executorId, BidStatus.PENDING.name());
 
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
-        when(bidRepository.findById(any(UUID.class))).thenReturn(
-                Optional.of(new Bid(bidId, taskId, executorId, BidStatus.PENDING.name()))
-        );
+        when(bidRepository.findById(any(UUID.class))).thenReturn(Optional.of(created));
 
         Bid bid = bidService.createBid(taskId, executorId);
 
         verify(bidRepository).create(any(UUID.class), eq(taskId), eq(executorId), eq(BidStatus.PENDING.name()));
         assertEquals(BidStatus.PENDING.name(), bid.getStatus());
+        assertEquals(taskId, bid.getTaskId());
+        assertEquals(executorId, bid.getExecutorId());
     }
 
     @Test
     void createBidThrowsWhenTaskNotFound() {
         UUID taskId = UUID.randomUUID();
+        UUID executorId = UUID.randomUUID();
 
         when(taskRepository.findById(taskId)).thenReturn(Optional.empty());
 
         NotFoundException ex = assertThrows(NotFoundException.class,
-                () -> bidService.createBid(taskId, UUID.randomUUID()));
+                () -> bidService.createBid(taskId, executorId));
 
         assertEquals("Task not found.", ex.getMessage());
     }
@@ -89,41 +81,41 @@ class BidServiceTest {
     @Test
     void createBidThrowsWhenTaskIsNotPublished() {
         UUID taskId = UUID.randomUUID();
+        UUID executorId = UUID.randomUUID();
         Task task = new Task(taskId, "Title", "Desc", 100, TaskStatus.CREATED, UUID.randomUUID(), null);
 
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
 
         ConflictException ex = assertThrows(ConflictException.class,
-                () -> bidService.createBid(taskId, UUID.randomUUID()));
+                () -> bidService.createBid(taskId, executorId));
 
         assertEquals("Task is not open for bids.", ex.getMessage());
         verify(bidRepository, never()).create(any(), any(), any(), any());
     }
 
     @Test
-    void markCompletedMarksTaskAsDoneForAssignedExecutor() {
+    void completeBidMarksTaskAsDoneForAssignedExecutor() {
         UUID taskId = UUID.randomUUID();
         UUID executorId = UUID.randomUUID();
         Task task = new Task(taskId, "Title", "Desc", 100, TaskStatus.IN_PROGRESS, UUID.randomUUID(), executorId);
 
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
-
         bidService.markCompleted(taskId, executorId);
-
         verify(taskRepository).updateStatus(taskId, TaskStatus.DONE);
     }
 
     @Test
-    void markCompletedThrowsWhenExecutorIsNotAssigned() {
+    void completeBidThrowsWhenExecutorIsNotAssigned() {
         UUID taskId = UUID.randomUUID();
-        Task task = new Task(taskId, "Title", "Desc", 100, TaskStatus.IN_PROGRESS, UUID.randomUUID(), UUID.randomUUID());
+        UUID executorId = UUID.randomUUID();
+        Task task = new Task(taskId, "Title", "Desc", 100, TaskStatus.IN_PROGRESS, UUID.randomUUID(), null);
 
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
 
-        ForbiddenException ex = assertThrows(ForbiddenException.class,
-                () -> bidService.markCompleted(taskId, UUID.randomUUID()));
+        ConflictException ex = assertThrows(ConflictException.class,
+                () -> bidService.markCompleted(taskId, executorId));
 
-        assertEquals("Only assigned executor can complete the task.", ex.getMessage());
+        assertEquals("Executor not assigned.", ex.getMessage());
         verify(taskRepository, never()).updateStatus(any(), any());
     }
 
@@ -152,20 +144,154 @@ class BidServiceTest {
         Task task = new Task(taskId, "Title", "Desc", 100, TaskStatus.PUBLISHED, customerId, null);
         Bid bid = new Bid(bidId, taskId, executorId, BidStatus.PENDING.name());
 
-        Update update = mock(Update.class, RETURNS_SELF);
-
-        mockTransaction();
-
-        when(handle.attach(TaskRepository.class)).thenReturn(taskRepository);
-        when(handle.attach(BidRepository.class)).thenReturn(bidRepository);
-
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
         when(bidRepository.findById(bidId)).thenReturn(Optional.of(bid));
 
-        when(handle.createUpdate(anyString())).thenReturn(update);
+        bidService.selectBid(bidId, customerId);
 
-        bidService.selectBid(taskId, bidId, customerId);
+        verify(bidRepository).updateStatus(bidId, BidStatus.ACCEPTED);
+        verify(bidRepository).rejectOtherBids(taskId, bidId);
+        verify(taskRepository).assignExecutor(taskId, executorId);
+    }
 
-        verify(handle, atLeastOnce()).createUpdate(anyString());
+    @Test
+    void getBidsReturnsPagedList() {
+        UUID taskId = UUID.randomUUID();
+        List<Bid> bids = List.of(
+                new Bid(UUID.randomUUID(), taskId, UUID.randomUUID(), BidStatus.PENDING.name()),
+                new Bid(UUID.randomUUID(), taskId, UUID.randomUUID(), BidStatus.ACCEPTED.name())
+        );
+
+        when(bidRepository.findByTask(taskId, 20, 0)).thenReturn(bids);
+
+        List<Bid> result = bidService.getBids(taskId, 20, 0);
+
+        assertEquals(bids, result);
+    }
+
+    @Test
+    void createBidThrowsWhenExecutorAlreadyHasBidForTask() {
+        UUID taskId = UUID.randomUUID();
+        UUID executorId = UUID.randomUUID();
+        UUID customerId = UUID.randomUUID();
+
+        Task task = new Task(taskId, "Title", "Desc", 100, TaskStatus.PUBLISHED, customerId, null);
+
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+        when(bidRepository.countByTaskIdAndExecutorId(taskId, executorId)).thenReturn(1);
+
+        ConflictException ex = assertThrows(ConflictException.class,
+                () -> bidService.createBid(taskId, executorId));
+
+        assertEquals("Executor already has a bid for this task.", ex.getMessage());
+        verify(bidRepository, never()).create(any(), any(), any(), any());
+    }
+
+    @Test
+    void selectBidThrowsWhenCalledByNotOwner() {
+        UUID taskId = UUID.randomUUID();
+        UUID bidId = UUID.randomUUID();
+        UUID customerId = UUID.randomUUID();
+        UUID ownerId = UUID.randomUUID();
+        UUID executorId = UUID.randomUUID();
+
+        Task task = new Task(taskId, "Title", "Desc", 100, TaskStatus.PUBLISHED, ownerId, null);
+        Bid bid = new Bid(bidId, taskId, executorId, BidStatus.PENDING.name());
+
+        when(bidRepository.findById(bidId)).thenReturn(Optional.of(bid));
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+        doThrow(new ForbiddenException("ONLY_OWNER_CAN_SELECT_BID", "Only task owner can select bid."))
+                .when(accessService)
+                .requireOwnerOrAdmin(eq(customerId), eq(ownerId), anyString(), anyString());
+
+        ForbiddenException ex = assertThrows(ForbiddenException.class,
+                () -> bidService.selectBid(bidId, customerId));
+
+        assertEquals("Only task owner can select bid.", ex.getMessage());
+        verify(bidRepository, never()).updateStatus(any(), any());
+        verify(bidRepository, never()).rejectOtherBids(any(), any());
+        verify(taskRepository, never()).assignExecutor(any(), any());
+    }
+
+    @Test
+    void selectBidThrowsWhenBidNotFound() {
+        UUID bidId = UUID.randomUUID();
+        UUID customerId = UUID.randomUUID();
+
+        when(bidRepository.findById(bidId)).thenReturn(Optional.empty());
+
+        NotFoundException ex = assertThrows(NotFoundException.class,
+                () -> bidService.selectBid(bidId, customerId));
+
+        assertEquals("Bid not found.", ex.getMessage());
+        verify(taskRepository, never()).findById(any());
+        verify(bidRepository, never()).updateStatus(any(), any());
+        verify(bidRepository, never()).rejectOtherBids(any(), any());
+        verify(taskRepository, never()).assignExecutor(any(), any());
+    }
+
+    @Test
+    void selectBidThrowsWhenTaskNotFound() {
+        UUID taskId = UUID.randomUUID();
+        UUID bidId = UUID.randomUUID();
+        UUID customerId = UUID.randomUUID();
+        UUID executorId = UUID.randomUUID();
+
+        Bid bid = new Bid(bidId, taskId, executorId, BidStatus.PENDING.name());
+
+        when(bidRepository.findById(bidId)).thenReturn(Optional.of(bid));
+        when(taskRepository.findById(taskId)).thenReturn(Optional.empty());
+
+        NotFoundException ex = assertThrows(NotFoundException.class,
+                () -> bidService.selectBid(bidId, customerId));
+
+        assertEquals("Task not found.", ex.getMessage());
+        verify(bidRepository, never()).updateStatus(any(), any());
+        verify(bidRepository, never()).rejectOtherBids(any(), any());
+        verify(taskRepository, never()).assignExecutor(any(), any());
+    }
+
+    @Test
+    void selectBidThrowsWhenTaskIsNotPublished() {
+        UUID taskId = UUID.randomUUID();
+        UUID bidId = UUID.randomUUID();
+        UUID customerId = UUID.randomUUID();
+        UUID executorId = UUID.randomUUID();
+
+        Task task = new Task(taskId, "Title", "Desc", 100, TaskStatus.CREATED, customerId, null);
+        Bid bid = new Bid(bidId, taskId, executorId, BidStatus.PENDING.name());
+
+        when(bidRepository.findById(bidId)).thenReturn(Optional.of(bid));
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+
+        ConflictException ex = assertThrows(ConflictException.class,
+                () -> bidService.selectBid(bidId, customerId));
+
+        assertEquals("Task is not open for selecting bids.", ex.getMessage());
+        verify(bidRepository, never()).updateStatus(any(), any());
+        verify(bidRepository, never()).rejectOtherBids(any(), any());
+        verify(taskRepository, never()).assignExecutor(any(), any());
+    }
+
+    @Test
+    void selectBidThrowsWhenExecutorAlreadySelected() {
+        UUID taskId = UUID.randomUUID();
+        UUID bidId = UUID.randomUUID();
+        UUID customerId = UUID.randomUUID();
+        UUID executorId = UUID.randomUUID();
+
+        Task task = new Task(taskId, "Title", "Desc", 100, TaskStatus.PUBLISHED, customerId, UUID.randomUUID());
+        Bid bid = new Bid(bidId, taskId, executorId, BidStatus.PENDING.name());
+
+        when(bidRepository.findById(bidId)).thenReturn(Optional.of(bid));
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+
+        ConflictException ex = assertThrows(ConflictException.class,
+                () -> bidService.selectBid(bidId, customerId));
+
+        assertEquals("Executor already selected.", ex.getMessage());
+        verify(bidRepository, never()).updateStatus(any(), any());
+        verify(bidRepository, never()).rejectOtherBids(any(), any());
+        verify(taskRepository, never()).assignExecutor(any(), any());
     }
 }

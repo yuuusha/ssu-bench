@@ -6,25 +6,24 @@ import com.diev.exception.BadRequestException;
 import com.diev.exception.ConflictException;
 import com.diev.exception.NotFoundException;
 import com.diev.repo.UserRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class UserService {
 
     private final UserRepository userRepository;
-    private final BCryptPasswordEncoder passwordEncoder;
-
-    public UserService(UserRepository userRepository) {
-        this.userRepository = userRepository;
-        this.passwordEncoder = new BCryptPasswordEncoder();
-    }
+    private final PasswordEncoder passwordEncoder;
+    private final CurrentUserAccessService accessService;
 
     public User createUser(String email, String password, Role role) {
-
         UUID id = UUID.randomUUID();
         String hash = passwordEncoder.encode(password);
 
@@ -41,7 +40,14 @@ public class UserService {
                 .orElseThrow(() -> new NotFoundException("USER_NOT_FOUND", "User not found."));
     }
 
-    public User updateUser(UUID id, String email, String password, Role role, long balance) {
+    @PreAuthorize("hasRole('ADMIN')")
+    public User updateUser(UUID id, UUID currentUserId, String email, String password, Role role, long balance) {
+        accessService.requireOwnerOrAdmin(
+                currentUserId,
+                id,
+                "ONLY_OWNER_OR_ADMIN_CAN_UPDATE_USER",
+                "Only owner or admin can update this user."
+        );
 
         User existing = userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("USER_NOT_FOUND", "User not found."));
@@ -59,8 +65,9 @@ public class UserService {
         return userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("USER_NOT_FOUND", "User not found."));
     }
-    public User updateUserBalance(UUID id, long balance) {
 
+    @PreAuthorize("hasRole('ADMIN')")
+    public User updateUserBalance(UUID id, UUID currentUserId, long balance) {
         User existing = userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("USER_NOT_FOUND", "User not found."));
 
@@ -74,7 +81,14 @@ public class UserService {
                 .orElseThrow(() -> new NotFoundException("USER_NOT_FOUND", "User not found."));
     }
 
-    public void deleteUser(UUID id) {
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'ADMIN')")
+    public void deleteUser(UUID id, UUID currentUserId) {
+        accessService.requireOwnerOrAdmin(
+                currentUserId,
+                id,
+                "ONLY_OWNER_CAN_DELETE",
+                "Only owner can delete."
+        );
 
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("USER_NOT_FOUND", "User not found."));
@@ -82,24 +96,34 @@ public class UserService {
         userRepository.delete(id);
     }
 
-    public User getUser(UUID id) {
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'ADMIN')")
+    public User getUser(UUID id, UUID currentUserId) {
+        accessService.requireOwnerOrAdmin(
+                currentUserId,
+                id,
+                "ONLY_OWNER_OR_ADMIN_CAN_VIEW_USER",
+                "Only owner or admin can view this user."
+        );
 
         return userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("USER_NOT_FOUND", "User not found."));
     }
 
-    public List<User> getAllUsers(int limit, int offset) {
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<User> getAllUsers(UUID currentUserId, int limit, int offset) {
         return userRepository.findAll(limit, offset);
     }
 
-    public void blockUser(UUID id) {
+    @PreAuthorize("hasRole('ADMIN')")
+    public void blockUser(UUID id, UUID currentUserId) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("USER_NOT_FOUND", "User not found."));
 
         userRepository.block(id);
     }
 
-    public void unblockUser(UUID id) {
+    @PreAuthorize("hasRole('ADMIN')")
+    public void unblockUser(UUID id, UUID currentUserId) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("USER_NOT_FOUND", "User not found."));
 

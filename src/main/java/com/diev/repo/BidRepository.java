@@ -62,13 +62,24 @@ public interface BidRepository {
     Optional<Bid> findSelectedBid(@Bind("taskId") UUID taskId);
 
     @SqlUpdate("""
-    UPDATE bids
-    SET status = 'REJECTED'
-    WHERE task_id = :taskId
-    AND id <> :acceptedBidId
-""")
+        UPDATE bids
+        SET status = 'REJECTED'
+        WHERE task_id = :taskId
+        AND id <> :acceptedBidId
+    """)
     void rejectOtherBids(
             @Bind("taskId") UUID taskId,
             @Bind("acceptedBidId") UUID acceptedBidId
+    );
+
+    @SqlQuery("""
+        SELECT COUNT(*)
+        FROM bids
+        WHERE task_id = :taskId
+          AND executor_id = :executorId
+    """)
+    int countByTaskIdAndExecutorId(
+            @Bind("taskId") UUID taskId,
+            @Bind("executorId") UUID executorId
     );
 }

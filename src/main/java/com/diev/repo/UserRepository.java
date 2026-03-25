@@ -87,6 +87,27 @@ public interface UserRepository {
 
     @SqlUpdate("""
         UPDATE users
+        SET balance = balance - :amount
+        WHERE id = :id
+          AND balance >= :amount
+    """)
+    int decreaseBalanceIfEnough(
+            @Bind("id") UUID id,
+            @Bind("amount") long amount
+    );
+
+    @SqlUpdate("""
+        UPDATE users
+        SET balance = balance + :amount
+        WHERE id = :id
+    """)
+    void increaseBalance(
+            @Bind("id") UUID id,
+            @Bind("amount") long amount
+    );
+
+    @SqlUpdate("""
+        UPDATE users
         SET blocked = true
         WHERE id = :id
     """)

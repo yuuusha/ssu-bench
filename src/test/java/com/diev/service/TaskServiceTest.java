@@ -26,11 +26,14 @@ class TaskServiceTest {
     @Mock
     private TaskRepository taskRepository;
 
+    @Mock
+    private CurrentUserAccessService accessService;
+
     private TaskService taskService;
 
     @BeforeEach
     void setUp() {
-        taskService = new TaskService(taskRepository);
+        taskService = new TaskService(taskRepository, accessService);
     }
 
     @Test
@@ -40,10 +43,11 @@ class TaskServiceTest {
         String description = "Task description";
         Integer reward = 100;
 
-        when(taskRepository.findById(any(UUID.class))).thenAnswer(invocation -> {
-            UUID id = invocation.getArgument(0);
-            return Optional.of(new Task(id, title, description, reward, TaskStatus.CREATED, customerId, null));
-        });
+        when(taskRepository.findById(any(UUID.class)))
+                .thenAnswer(invocation -> {
+                    UUID generatedId = invocation.getArgument(0);
+                    return Optional.of(new Task(generatedId, title, description, reward, TaskStatus.CREATED, customerId, null));
+                });
 
         Task task = taskService.createTask(customerId, title, description, reward);
 
@@ -54,6 +58,64 @@ class TaskServiceTest {
         assertEquals(title, task.getTitle());
         assertEquals(reward, task.getReward());
         assertEquals(TaskStatus.CREATED.name(), statusCaptor.getValue());
+    }
+
+    @Test
+    void updateTaskUpdatesOnlyWhenOwnerOrAdminAndEditable() {
+        UUID taskId = UUID.randomUUID();
+        UUID customerId = UUID.randomUUID();
+        UUID currentUserId = UUID.randomUUID();
+        String title = "Updated title";
+        String description = "Updated description";
+        Integer reward = 150;
+        TaskStatus status = TaskStatus.CREATED;
+
+        Task existing = new Task(taskId, "Old title", "Old description", 100, TaskStatus.CREATED, customerId, null);
+        Task updated = new Task(taskId, title, description, reward, TaskStatus.CREATED, customerId, null);
+
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(existing), Optional.of(updated));
+        doNothing().when(accessService).requireOwnerOrAdmin(currentUserId, customerId, "ONLY_OWNER_CAN_UPDATE_TASK", "Only task owner can update it.");
+
+        Task result = taskService.updateTask(taskId, title, description, reward, status.name(), currentUserId);
+
+        verify(taskRepository).update(eq(taskId), eq(title), eq(description), eq(reward), eq(status.name()));
+        assertEquals(title, result.getTitle());
+        assertEquals(description, result.getDescription());
+        assertEquals(reward, result.getReward());
+    }
+
+    @Test
+    void publishTaskPublishesCreatedTask() {
+        UUID taskId = UUID.randomUUID();
+        UUID customerId = UUID.randomUUID();
+        UUID currentUserId = UUID.randomUUID();
+        Task task = new Task(taskId, "Title", "Desc", 100, TaskStatus.CREATED, customerId, null);
+        Task published = new Task(taskId, "Title", "Desc", 100, TaskStatus.PUBLISHED, customerId, null);
+
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task), Optional.of(published));
+        doNothing().when(accessService).requireOwnerOrAdmin(currentUserId, customerId, "ONLY_OWNER_CAN_PUBLISH_TASK", "Only task owner can publish it.");
+
+        Task result = taskService.publishTask(taskId, currentUserId);
+
+        verify(taskRepository).updateStatus(taskId, TaskStatus.PUBLISHED);
+        assertEquals(TaskStatus.PUBLISHED, result.getStatus());
+    }
+
+    @Test
+    void publishTaskThrowsWhenTaskAlreadyPublished() {
+        UUID taskId = UUID.randomUUID();
+        UUID customerId = UUID.randomUUID();
+        UUID currentUserId = UUID.randomUUID();
+        Task task = new Task(taskId, "Title", "Desc", 100, TaskStatus.PUBLISHED, customerId, null);
+
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+        doNothing().when(accessService).requireOwnerOrAdmin(currentUserId, customerId, "ONLY_OWNER_CAN_PUBLISH_TASK", "Only task owner can publish it.");
+
+        ConflictException ex = assertThrows(ConflictException.class,
+                () -> taskService.publishTask(taskId, currentUserId));
+
+        assertEquals("Task can be published only from CREATED status.", ex.getMessage());
+        verify(taskRepository, never()).updateStatus(any(), any());
     }
 
     @Test
@@ -86,11 +148,13 @@ class TaskServiceTest {
     void cancelTaskCancelsWhenOwnerAndTaskNotConfirmed() {
         UUID taskId = UUID.randomUUID();
         UUID customerId = UUID.randomUUID();
+        UUID currentUserId = UUID.randomUUID();
         Task task = new Task(taskId, "Title", "Desc", 100, TaskStatus.PUBLISHED, customerId, null);
 
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+        doNothing().when(accessService).requireOwnerOrAdmin(currentUserId, customerId, "ONLY_OWNER_CAN_CANCEL", "Only the task owner can cancel it.");
 
-        taskService.cancelTask(taskId, customerId);
+        taskService.cancelTask(taskId, currentUserId);
 
         verify(taskRepository).cancel(taskId);
     }
@@ -98,12 +162,17 @@ class TaskServiceTest {
     @Test
     void cancelTaskThrowsWhenNotOwner() {
         UUID taskId = UUID.randomUUID();
-        Task task = new Task(taskId, "Title", "Desc", 100, TaskStatus.PUBLISHED, UUID.randomUUID(), null);
+        UUID customerId = UUID.randomUUID();
+        UUID currentUserId = UUID.randomUUID();
+        Task task = new Task(taskId, "Title", "Desc", 100, TaskStatus.PUBLISHED, customerId, null);
 
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+        doThrow(new ForbiddenException("ONLY_OWNER_CAN_CANCEL", "Only the task owner can cancel it."))
+                .when(accessService)
+                .requireOwnerOrAdmin(eq(currentUserId), eq(customerId), anyString(), anyString());
 
         ForbiddenException ex = assertThrows(ForbiddenException.class,
-                () -> taskService.cancelTask(taskId, UUID.randomUUID()));
+                () -> taskService.cancelTask(taskId, currentUserId));
 
         assertEquals("Only the task owner can cancel it.", ex.getMessage());
         verify(taskRepository, never()).cancel(any());
@@ -113,12 +182,14 @@ class TaskServiceTest {
     void cancelTaskThrowsWhenAlreadyConfirmed() {
         UUID taskId = UUID.randomUUID();
         UUID customerId = UUID.randomUUID();
+        UUID currentUserId = UUID.randomUUID();
         Task task = new Task(taskId, "Title", "Desc", 100, TaskStatus.CONFIRMED, customerId, UUID.randomUUID());
 
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+        doNothing().when(accessService).requireOwnerOrAdmin(currentUserId, customerId, "ONLY_OWNER_CAN_CANCEL", "Only the task owner can cancel it.");
 
         ConflictException ex = assertThrows(ConflictException.class,
-                () -> taskService.cancelTask(taskId, customerId));
+                () -> taskService.cancelTask(taskId, currentUserId));
 
         assertEquals("Completed task cannot be cancelled.", ex.getMessage());
         verify(taskRepository, never()).cancel(any());

@@ -10,12 +10,10 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class User {
-
     UUID id;
     String email;
     String password;
     String role;
     Integer balance;
     Boolean blocked;
-
 }

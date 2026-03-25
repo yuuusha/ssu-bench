@@ -314,12 +314,6 @@ paths:
       summary: Create task
       parameters:
         - in: query
-          name: customerId
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - in: query
           name: title
           required: true
           schema:
@@ -440,12 +434,6 @@ paths:
       summary: Cancel task
       parameters:
         - $ref: '#/components/parameters/IdPath'
-        - in: query
-          name: customerId
-          required: true
-          schema:
-            type: string
-            format: uuid
       responses:
         '200':
           description: Cancelled
@@ -465,12 +453,6 @@ paths:
       parameters:
         - in: query
           name: taskId
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - in: query
-          name: executorId
           required: true
           schema:
             type: string
@@ -543,18 +525,6 @@ paths:
           schema:
             type: string
             format: uuid
-        - in: query
-          name: taskId
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - in: query
-          name: customerId
-          required: true
-          schema:
-            type: string
-            format: uuid
       responses:
         '200':
           description: Selected
@@ -580,12 +550,6 @@ paths:
           schema:
             type: string
             format: uuid
-        - in: query
-          name: executorId
-          required: true
-          schema:
-            type: string
-            format: uuid
       responses:
         '200':
           description: Completed
@@ -607,12 +571,6 @@ paths:
       parameters:
         - in: query
           name: taskId
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - in: query
-          name: customerId
           required: true
           schema:
             type: string
@@ -682,9 +640,6 @@ components:
     Task:
       type: object
       properties:
-        id:
-          type: string
-          format: uuid
         title:
           type: string
         description:
@@ -693,13 +648,10 @@ components:
           type: integer
         status:
           $ref: '#/components/schemas/TaskStatus'
-        customerId:
-          type: string
-          format: uuid
         executorId:
           type: string
           format: uuid
-      required: [id, title, description, reward, status, customerId]
+      required: [title, description, reward, status]
 
     Bid:
       type: object
@@ -710,12 +662,9 @@ components:
         taskId:
           type: string
           format: uuid
-        executorId:
-          type: string
-          format: uuid
         status:
           $ref: '#/components/schemas/BidStatus'
-      required: [id, taskId, executorId, status]
+      required: [id, taskId, status]
 
     Payment:
       type: object

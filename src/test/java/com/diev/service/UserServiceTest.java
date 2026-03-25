@@ -2,8 +2,10 @@ package com.diev.service;
 
 import com.diev.entity.Role;
 import com.diev.entity.User;
+import com.diev.exception.BadRequestException;
 import com.diev.exception.NotFoundException;
 import com.diev.repo.UserRepository;
+import io.jsonwebtoken.security.Password;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -11,6 +13,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
 import java.util.Optional;
@@ -25,12 +28,16 @@ class UserServiceTest {
 
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private CurrentUserAccessService accessService;
+
+    private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     private UserService userService;
 
     @BeforeEach
     void setUp() {
-        userService = new UserService(userRepository);
+        userService = new UserService(userRepository, passwordEncoder, accessService);
     }
 
     @Test
@@ -39,10 +46,11 @@ class UserServiceTest {
         String rawPassword = "password123";
         Role role = Role.EXECUTOR;
 
-        when(userRepository.findById(any(UUID.class))).thenAnswer(invocation -> {
-            UUID id = invocation.getArgument(0);
-            return Optional.of(new User(id, email, "encoded", role.name(), 0, false));
-        });
+        when(userRepository.findById(any(UUID.class)))
+                .thenAnswer(invocation -> {
+                    UUID generatedId = invocation.getArgument(0);
+                    return Optional.of(new User(generatedId, email, "encoded", role.name(), 0, false));
+                });
 
         User user = userService.createUser(email, rawPassword, role);
 
@@ -55,8 +63,23 @@ class UserServiceTest {
     }
 
     @Test
+    void getUserReturnsUserForOwnerOrAdmin() {
+        UUID id = UUID.randomUUID();
+        UUID currentUserId = UUID.randomUUID();
+        User user = new User(id, "test@example.com", "hash", "CUSTOMER", 0, false);
+
+        doNothing().when(accessService).requireOwnerOrAdmin(currentUserId, id, "ONLY_OWNER_OR_ADMIN_CAN_VIEW_USER", "Only owner or admin can view this user.");
+        when(userRepository.findById(id)).thenReturn(Optional.of(user));
+
+        User result = userService.getUser(id, currentUserId);
+
+        assertSame(user, result);
+    }
+
+    @Test
     void updateUserUpdatesExistingUser() {
         UUID id = UUID.randomUUID();
+        UUID currentUserId = UUID.randomUUID();
         String newEmail = "updated@example.com";
         String rawPassword = "newpass";
         Role role = Role.ADMIN;
@@ -65,9 +88,10 @@ class UserServiceTest {
         User existing = new User(id, "old@example.com", "oldHash", "CUSTOMER", 5, false);
         User updated = new User(id, newEmail, "newHash", role.name(), 5, false);
 
+        doNothing().when(accessService).requireOwnerOrAdmin(currentUserId, id, "ONLY_OWNER_OR_ADMIN_CAN_UPDATE_USER", "Only owner or admin can update this user.");
         when(userRepository.findById(id)).thenReturn(Optional.of(existing), Optional.of(updated));
 
-        User result = userService.updateUser(id, newEmail, rawPassword, role, newBalance);
+        User result = userService.updateUser(id, currentUserId, newEmail, rawPassword, role, newBalance);
 
         ArgumentCaptor<String> passwordCaptor = ArgumentCaptor.forClass(String.class);
         verify(userRepository).update(eq(id), eq(newEmail), passwordCaptor.capture(), eq(role.name()), eq(newBalance));
@@ -78,19 +102,52 @@ class UserServiceTest {
     }
 
     @Test
-    void deleteUserDeletesExistingUser() {
+    void updateUserBalanceUpdatesBalanceForAdminOnly() {
         UUID id = UUID.randomUUID();
+        UUID currentUserId = UUID.randomUUID();
+
+        User existing = new User(id, "test@example.com", "hash", "CUSTOMER", 5, false);
+        User updated = new User(id, "test@example.com", "hash", "CUSTOMER", 25, false);
+
+        when(userRepository.findById(id)).thenReturn(Optional.of(existing), Optional.of(updated));
+
+        User result = userService.updateUserBalance(id, currentUserId, 25);
+
+        verify(userRepository).updateBalance(id, 25L);
+        assertEquals(25, result.getBalance());
+    }
+
+    @Test
+    void updateUserBalanceThrowsWhenInvalidValue() {
+        UUID id = UUID.randomUUID();
+        UUID currentUserId = UUID.randomUUID();
+
+        when(userRepository.findById(id)).thenReturn(Optional.of(new User(id, "test@example.com", "hash", "CUSTOMER", 5, false)));
+
+        BadRequestException ex = assertThrows(BadRequestException.class,
+                () -> userService.updateUserBalance(id, currentUserId, 0));
+
+        assertEquals("Balance must be greater than zero.", ex.getMessage());
+        verify(userRepository, never()).updateBalance(any(), anyLong());
+    }
+
+    @Test
+    void deleteUserDeletesExistingUserForAdmin() {
+        UUID id = UUID.randomUUID();
+        UUID currentUserId = UUID.randomUUID();
 
         when(userRepository.findById(id))
                 .thenReturn(Optional.of(new User(id, "test@example.com", "hash", "CUSTOMER", 0, false)));
 
-        assertDoesNotThrow(() -> userService.deleteUser(id));
+        assertDoesNotThrow(() -> userService.deleteUser(id, currentUserId));
 
         verify(userRepository).delete(id);
     }
 
     @Test
-    void getAllUsersReturnsPagedList() {
+    void getAllUsersReturnsPagedListForAdmin() {
+        UUID currentUserId = UUID.randomUUID();
+
         List<User> users = List.of(
                 new User(UUID.randomUUID(), "a@example.com", "hash", "CUSTOMER", 0, false),
                 new User(UUID.randomUUID(), "b@example.com", "hash", "EXECUTOR", 10, false)
@@ -98,22 +155,24 @@ class UserServiceTest {
 
         when(userRepository.findAll(20, 0)).thenReturn(users);
 
-        List<User> result = userService.getAllUsers(20, 0);
+        List<User> result = userService.getAllUsers(currentUserId, 20, 0);
 
         assertEquals(2, result.size());
         assertEquals(users, result);
     }
 
     @Test
-    void blockAndUnblockUserWork() {
+    void blockAndUnblockUserWorkForAdmin() {
         UUID id = UUID.randomUUID();
+        UUID currentUserId = UUID.randomUUID();
 
         when(userRepository.findById(id))
                 .thenReturn(Optional.of(new User(id, "test@example.com", "hash", "CUSTOMER", 0, false)))
-                .thenReturn(Optional.of(new User(id, "test@example.com", "hash", "CUSTOMER", 0, true)));
+                .thenReturn(Optional.of(new User(id, "test@example.com", "hash", "CUSTOMER", 0, true)))
+                .thenReturn(Optional.of(new User(id, "test@example.com", "hash", "CUSTOMER", 0, false)));
 
-        userService.blockUser(id);
-        userService.unblockUser(id);
+        userService.blockUser(id, currentUserId);
+        userService.unblockUser(id, currentUserId);
 
         verify(userRepository).block(id);
         verify(userRepository).unblock(id);
@@ -122,10 +181,12 @@ class UserServiceTest {
     @Test
     void getUserThrowsWhenNotFound() {
         UUID id = UUID.randomUUID();
+        UUID currentUserId = UUID.randomUUID();
 
+        doNothing().when(accessService).requireOwnerOrAdmin(currentUserId, id, "ONLY_OWNER_OR_ADMIN_CAN_VIEW_USER", "Only owner or admin can view this user.");
         when(userRepository.findById(id)).thenReturn(Optional.empty());
 
-        NotFoundException ex = assertThrows(NotFoundException.class, () -> userService.getUser(id));
+        NotFoundException ex = assertThrows(NotFoundException.class, () -> userService.getUser(id, currentUserId));
         assertEquals("User not found.", ex.getMessage());
     }
 }

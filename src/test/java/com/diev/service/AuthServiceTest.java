@@ -15,6 +15,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -28,13 +29,15 @@ class AuthServiceTest {
 
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private JwtService jwtService;
 
     private AuthService authService;
-    private JwtService jwtService;
+    private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @BeforeEach
     void setUp() {
-        authService = new AuthService(userRepository, jwtService);
+        authService = new AuthService(userRepository, passwordEncoder, jwtService);
     }
 
     @Test
@@ -72,19 +75,25 @@ class AuthServiceTest {
         assertEquals("User with this email already exists.", ex.getMessage());
     }
 
-//    @Test
-//    void loginReturnsUserWhenPasswordIsValid() {
-//        String email = "test@example.com";
-//        String rawPassword = "secret123";
-//        String hash = new BCryptPasswordEncoder().encode(rawPassword);
-//        User user = new User(UUID.randomUUID(), email, hash, "CUSTOMER", 10, false);
-//
-//        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
-//
-//        AuthResponse result = authService.login(email, rawPassword);
-//
-//        assertSame(user, result);
-//    }
+    @Test
+    void loginReturnsUserWhenPasswordIsValid() {
+        String email = "test@example.com";
+        String rawPassword = "secret123";
+        String hash = new BCryptPasswordEncoder().encode(rawPassword);
+        User user = new User(UUID.randomUUID(), email, hash, "CUSTOMER", 10, false);
+
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+        when(jwtService.generateToken(user)).thenReturn("token");
+
+        AuthResponse result = authService.login(email, rawPassword);
+
+        assertNotNull(result);
+        assertNotNull(result.user());
+        assertEquals(email, result.user().email());
+        assertEquals(Role.CUSTOMER, result.user().role());
+        assertEquals(10, result.user().balance());
+        assertFalse(result.user().blocked());
+    }
 
     @Test
     void loginThrowsWhenUserIsBlocked() {

@@ -11,8 +11,8 @@ import java.time.Duration;
 @ConfigurationProperties(prefix = "security.jwt")
 public class JwtProperties {
 
-    private String secret = "ssubench-dev-secret-change-me";
-    private String issuer = "ssu-bench";
-    private Duration expiration = Duration.ofHours(24);
+    private String secret;
+    private String issuer;
+    private Duration expiration;
 
 }

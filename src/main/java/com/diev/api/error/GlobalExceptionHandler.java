@@ -156,7 +156,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleUnknown(Exception ex, HttpServletRequest request) {
         log.error("Unhandled exception on {} {}", request.getMethod(), request.getRequestURI(), ex);
-
         return build(
                 HttpStatus.INTERNAL_SERVER_ERROR,
                 "INTERNAL_ERROR",
@@ -183,7 +182,6 @@ public class GlobalExceptionHandler {
                 requestId(),
                 details
         );
-
         return ResponseEntity.status(status).body(body);
     }
 

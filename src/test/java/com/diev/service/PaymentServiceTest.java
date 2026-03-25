@@ -30,12 +30,6 @@ import static org.mockito.Mockito.*;
 class PaymentServiceTest {
 
     @Mock
-    private Jdbi jdbi;
-
-    @Mock
-    private Handle handle;
-
-    @Mock
     private TaskRepository taskRepository;
 
     @Mock
@@ -44,19 +38,14 @@ class PaymentServiceTest {
     @Mock
     private PaymentRepository paymentRepository;
 
+    @Mock
+    private CurrentUserAccessService accessService;
+
     private PaymentService paymentService;
 
     @BeforeEach
     void setUp() {
-        paymentService = new PaymentService(jdbi);
-    }
-
-    private void mockTransaction() {
-        doAnswer(invocation -> {
-            HandleConsumer<?> consumer = invocation.getArgument(0);
-            consumer.useHandle(handle);
-            return null;
-        }).when(jdbi).useTransaction(any());
+        paymentService = new PaymentService(taskRepository, userRepository, paymentRepository, accessService);
     }
 
     @Test
@@ -67,40 +56,38 @@ class PaymentServiceTest {
 
         Task task = new Task(taskId, "Title", "Desc", 100, TaskStatus.DONE, customerId, executorId);
 
-        mockTransaction();
-
-        when(handle.attach(TaskRepository.class)).thenReturn(taskRepository);
-        when(handle.attach(UserRepository.class)).thenReturn(userRepository);
-        when(handle.attach(PaymentRepository.class)).thenReturn(paymentRepository);
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
-        when(handle.createUpdate(anyString())).thenReturn(mock(Update.class, RETURNS_SELF));
-        when(handle.createUpdate(anyString()).execute()).thenReturn(1);
+        when(userRepository.decreaseBalanceIfEnough(customerId, 100L)).thenReturn(1);
 
         paymentService.confirmTask(taskId, customerId);
 
+        verify(userRepository).decreaseBalanceIfEnough(customerId, 100L);
+        verify(userRepository).increaseBalance(executorId, 100L);
         verify(paymentRepository).create(any(UUID.class), eq(customerId), eq(executorId), eq(100), any(LocalDateTime.class));
-        verify(taskRepository).findById(taskId);
+        verify(taskRepository).updateStatus(taskId, TaskStatus.CONFIRMED);
     }
 
     @Test
     void confirmTaskThrowsWhenCalledByNotOwner() {
         UUID taskId = UUID.randomUUID();
         UUID customerId = UUID.randomUUID();
+        UUID ownerId = UUID.randomUUID();
 
         Task task = new Task(taskId, "Title", "Desc", 100, TaskStatus.DONE, UUID.randomUUID(), UUID.randomUUID());
 
-        mockTransaction();
-
-        when(handle.attach(TaskRepository.class)).thenReturn(taskRepository);
-        when(handle.attach(UserRepository.class)).thenReturn(userRepository);
-        when(handle.attach(PaymentRepository.class)).thenReturn(paymentRepository);
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+        doThrow(new ForbiddenException("ONLY_CUSTOMER_CAN_CONFIRM", "Only customer can confirm the task."))
+                .when(accessService)
+                .requireOwnerOrAdmin(eq(customerId), any(), anyString(), anyString());
 
         ForbiddenException ex = assertThrows(ForbiddenException.class,
                 () -> paymentService.confirmTask(taskId, customerId));
 
         assertEquals("Only customer can confirm the task.", ex.getMessage());
         verify(paymentRepository, never()).create(any(), any(), any(), any(), any());
+        verify(userRepository, never()).decreaseBalanceIfEnough(any(), anyLong());
+        verify(userRepository, never()).increaseBalance(any(), anyLong());
+        verify(taskRepository, never()).updateStatus(any(), any());
     }
 
     @Test
@@ -110,18 +97,17 @@ class PaymentServiceTest {
 
         Task task = new Task(taskId, "Title", "Desc", 100, TaskStatus.IN_PROGRESS, customerId, UUID.randomUUID());
 
-        mockTransaction();
-
-        when(handle.attach(TaskRepository.class)).thenReturn(taskRepository);
-        when(handle.attach(UserRepository.class)).thenReturn(userRepository);
-        when(handle.attach(PaymentRepository.class)).thenReturn(paymentRepository);
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+        doNothing().when(accessService).requireOwnerOrAdmin(eq(customerId), eq(customerId), anyString(), anyString());
 
         ConflictException ex = assertThrows(ConflictException.class,
                 () -> paymentService.confirmTask(taskId, customerId));
 
         assertEquals("Task is not completed by executor.", ex.getMessage());
         verify(paymentRepository, never()).create(any(), any(), any(), any(), any());
+        verify(userRepository, never()).decreaseBalanceIfEnough(any(), anyLong());
+        verify(userRepository, never()).increaseBalance(any(), anyLong());
+        verify(taskRepository, never()).updateStatus(any(), any());
     }
 
     @Test
@@ -131,11 +117,6 @@ class PaymentServiceTest {
 
         Task task = new Task(taskId, "Title", "Desc", 100, TaskStatus.DONE, customerId, null);
 
-        mockTransaction();
-
-        when(handle.attach(TaskRepository.class)).thenReturn(taskRepository);
-        when(handle.attach(UserRepository.class)).thenReturn(userRepository);
-        when(handle.attach(PaymentRepository.class)).thenReturn(paymentRepository);
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
 
         ConflictException ex = assertThrows(ConflictException.class,
@@ -143,6 +124,9 @@ class PaymentServiceTest {
 
         assertEquals("Executor not assigned.", ex.getMessage());
         verify(paymentRepository, never()).create(any(), any(), any(), any(), any());
+        verify(userRepository, never()).decreaseBalanceIfEnough(any(), anyLong());
+        verify(userRepository, never()).increaseBalance(any(), anyLong());
+        verify(taskRepository, never()).updateStatus(any(), any());
     }
 
     @Test
@@ -153,21 +137,16 @@ class PaymentServiceTest {
 
         Task task = new Task(taskId, "Title", "Desc", 100, TaskStatus.DONE, customerId, executorId);
 
-        Update update = mock(Update.class, RETURNS_SELF);
-
-        mockTransaction();
-
-        when(handle.attach(TaskRepository.class)).thenReturn(taskRepository);
-        when(handle.attach(UserRepository.class)).thenReturn(userRepository);
-        when(handle.attach(PaymentRepository.class)).thenReturn(paymentRepository);
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
-        when(handle.createUpdate(anyString())).thenReturn(update);
-        when(update.execute()).thenReturn(0);
+        when(userRepository.decreaseBalanceIfEnough(customerId, 100L)).thenReturn(0);
 
         InsufficientBalanceException ex = assertThrows(InsufficientBalanceException.class,
                 () -> paymentService.confirmTask(taskId, customerId));
 
         assertEquals("Not enough balance.", ex.getMessage());
+        verify(userRepository).decreaseBalanceIfEnough(customerId, 100L);
+        verify(userRepository, never()).increaseBalance(any(), anyLong());
         verify(paymentRepository, never()).create(any(), any(), any(), any(), any());
+        verify(taskRepository, never()).updateStatus(any(), any());
     }
 }

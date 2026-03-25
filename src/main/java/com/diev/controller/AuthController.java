@@ -1,25 +1,22 @@
-package com.diev.handler;
+package com.diev.controller;
 
 import com.diev.api.auth.AuthResponse;
 import com.diev.entity.Role;
-import com.diev.entity.User;
 import com.diev.service.AuthService;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/auth")
+@RequiredArgsConstructor
 @Validated
 public class AuthController {
 
     private final AuthService authService;
-
-    public AuthController(AuthService authService) {
-        this.authService = authService;
-    }
 
     @PostMapping("/register")
     public AuthResponse register(
@@ -27,7 +24,6 @@ public class AuthController {
             @RequestParam @NotBlank String password,
             @RequestParam @NotNull Role role
     ) {
-
         return authService.register(email, password, role);
     }
 
@@ -36,7 +32,6 @@ public class AuthController {
             @RequestParam @NotBlank @Email String email,
             @RequestParam @NotBlank String password
     ) {
-
         return authService.login(email, password);
     }
 }
