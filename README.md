@@ -72,7 +72,6 @@ Authorization: Bearer <token>
 
 - Пароли хранятся только в bcrypt.
 - Доступ к большинству эндпоинтов требует аутентификации.
-- Для получения текущего пользователя в контроллерах используется `@CurrentUserId`.
 
 ## Формат ошибок
 
@@ -86,8 +85,6 @@ Authorization: Bearer <token>
 - `path`
 - `requestId`
 - `details`
-
-При валидации входных данных в ответе также может быть массив `details` с ошибками по полям.
 
 ## Эндпоинты
 
@@ -129,7 +126,7 @@ Authorization: Bearer <token>
 
 ## Статусы
 
-- `TaskStatus`
+### `TaskStatus`
 - `CREATED`
 - `PUBLISHED`
 - `IN_PROGRESS`
@@ -164,7 +161,7 @@ HTTP_TIMEOUT_REQUEST=
 
 ## Запуск с Docker
 
-Подготовить окружение, заполнить .env.example
+Подготовить окружение, заполнить .env
 
 ```bash
 cp .env.example .env
