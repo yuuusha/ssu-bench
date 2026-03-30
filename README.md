@@ -4,7 +4,7 @@ REST API платформа для размещения заданий, откл
 
 ## Стек
 
-- Java
+- Java 25
 - Spring Boot
 - PostgreSQL
 - JDBI
@@ -164,9 +164,17 @@ HTTP_TIMEOUT_REQUEST=
 
 ## Запуск с Docker
 
+Подготовить окружение, заполнить .env.example
+
+```bash
+cp .env.example .env
+```
+
 ```bash
 docker compose up
 ```
+
+Миграции применятся автоматически.
 
 ## Ручной запуск
 
@@ -284,4 +292,6 @@ curl -X POST "$BASE_URL/users/<USER_ID>/unblock" \
 
 ## OpenAPI
 
-Swagger доступен по адресу `http://localhost:8080/swagger-ui/index.html#/`
+Описание API: openapi.yaml
+
+Swagger после запуска доступен по адресу `http://localhost:8080/swagger-ui/index.html#/`
