@@ -142,7 +142,7 @@ Authorization: Bearer <token>
 
 ## Переменные окружения
 
-Проект читает конфигурацию из .env и application.yaml.
+Проект читает конфигурацию из `.env` и `application.yaml`.
 
 Пример .env:
 
@@ -184,7 +184,7 @@ docker compose up
 
 ## Примеры curl
 
-API доступен по адресу http://localhost:8080
+API доступен по адресу `http://localhost:8080`
 
 ### Регистрация 
 
@@ -291,6 +291,6 @@ curl -X POST "$BASE_URL/users/<USER_ID>/unblock" \
 
 ## OpenAPI
 
-Описание API: openapi.yaml
+Описание API: `openapi.yaml`
 
 Swagger после запуска доступен по адресу `http://localhost:8080/swagger-ui/index.html#/`
