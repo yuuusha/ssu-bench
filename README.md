@@ -159,13 +159,15 @@ HTTP_SHUTDOWN_TIMEOUT=
 HTTP_TIMEOUT_REQUEST=
 ```
 
-## Запуск с Docker
+## Запуск
 
-Подготовить окружение, заполнить .env
+Подготовить окружение, заполнить .env:
 
 ```bash
 cp .env.example .env
 ```
+
+Запустить докер:
 
 ```bash
 docker compose up
@@ -173,7 +175,7 @@ docker compose up
 
 Миграции применятся автоматически.
 
-## Ручной запуск
+Запустить приложение:
 
 ```bash
 ./gradlew test
