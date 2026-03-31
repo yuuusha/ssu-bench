@@ -10,6 +10,7 @@ public enum ErrorCode {
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "User not found."),
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", "Invalid credentials."),
     USER_BLOCKED(HttpStatus.FORBIDDEN, "USER_BLOCKED", "User is blocked."),
+    ADMIN_BLOCK_HIMSELF(HttpStatus.CONFLICT, "ADMIN_BLOCK_HIMSELF", "Admin cannot block himself"),
 
     INVALID_REWARD(HttpStatus.BAD_REQUEST, "INVALID_REWARD", "Reward must be greater than zero."),
     INVALID_BALANCE(HttpStatus.BAD_REQUEST, "INVALID_BALANCE", "Balance must be greater than zero."),

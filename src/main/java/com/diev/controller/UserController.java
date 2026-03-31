@@ -98,10 +98,11 @@ public class UserController {
     @TimeLimiter(name = "http-controller")
     @PostMapping("/{id}/block")
     public CompletableFuture<Void> blockUser(
-            @PathVariable UUID id
+            @PathVariable UUID id,
+            @CurrentUserId UUID currentUserId
     ) {
         return CompletableFuture.supplyAsync(() -> {
-            userService.blockUser(id);
+            userService.blockUser(id, currentUserId);
             return null;
         }, controllerExecutor);
     }

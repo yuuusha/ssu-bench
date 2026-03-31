@@ -3,6 +3,7 @@ package com.diev.service;
 import com.diev.entity.Role;
 import com.diev.entity.User;
 import com.diev.exception.BadRequestException;
+import com.diev.exception.ConflictException;
 import com.diev.exception.ErrorCode;
 import com.diev.exception.NotFoundException;
 import com.diev.repo.UserRepository;
@@ -111,7 +112,11 @@ public class UserService {
     }
 
     @PreAuthorize("hasRole('ADMIN')")
-    public void blockUser(UUID id) {
+    public void blockUser(UUID id, UUID currentUserId) {
+        if (id.equals(currentUserId)) {
+            throw new ConflictException(ErrorCode.ADMIN_BLOCK_HIMSELF);
+        }
+
         userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.USER_NOT_FOUND));
 

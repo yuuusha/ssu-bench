@@ -3,6 +3,7 @@ package com.diev.service;
 import com.diev.entity.Role;
 import com.diev.entity.User;
 import com.diev.exception.BadRequestException;
+import com.diev.exception.ConflictException;
 import com.diev.exception.ErrorCode;
 import com.diev.exception.NotFoundException;
 import com.diev.repo.UserRepository;
@@ -161,17 +162,26 @@ class UserServiceTest {
     @Test
     void blockAndUnblockUserWorkForAdmin() {
         UUID id = UUID.randomUUID();
+        UUID adminId = UUID.randomUUID();
 
         when(userRepository.findById(id))
                 .thenReturn(Optional.of(new User(id, "test@example.com", "hash", "CUSTOMER", 0, false)))
                 .thenReturn(Optional.of(new User(id, "test@example.com", "hash", "CUSTOMER", 0, true)))
                 .thenReturn(Optional.of(new User(id, "test@example.com", "hash", "CUSTOMER", 0, false)));
 
-        userService.blockUser(id);
+        userService.blockUser(id, adminId);
         userService.unblockUser(id);
 
         verify(userRepository).block(id);
         verify(userRepository).unblock(id);
+    }
+
+    @Test
+    void blockUserWhenAdminBlocksHimselfThrowsException() {
+        UUID id = UUID.randomUUID();
+
+        ConflictException ex = assertThrows(ConflictException.class, () -> userService.blockUser(id, id));
+        assertEquals("Admin cannot block himself", ex.getMessage());
     }
 
     @Test
